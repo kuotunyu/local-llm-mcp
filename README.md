@@ -277,19 +277,23 @@ WSL2 NAT 模式(預設)下,Windows → WSL2 的 localhost forwarding 是內建�
 
 `docs/screenshots/lm-studio/`(截圖待補)
 
-### Gemini CLI(WSL 內)
+### Antigravity CLI(WSL 內)—— 取代已停役的 Gemini CLI
 
-設定檔位置:`~/.gemini/settings.json`。**兩個容易寫錯的地方**:Streamable HTTP 要用 `httpUrl` 欄位(不是 `url` —— 那是 legacy SSE-only 的欄位);伺服器名稱**不能包含底線**(`mcp_{serverName}_{toolName}` 的全名解析規則是用第一個底線切開,底線命名的伺服器會被誤判)。
+> **⚠️ 生態變動紀錄**:Google 已於 **2026-06-18 對個人用戶停用 Gemini CLI**(免費/AI Pro/Ultra 全數停服,僅 Gemini Code Assist 企業版存續),接替者是閉源 Go 重寫的 **Antigravity CLI**。本專案在停用前(2026-07-15)完成過 Gemini CLI 的連線層驗證(`gemini mcp list` 兩個 transport 皆 Connected —— 該健康檢查為純本地操作,不受停服影響),當時的兩個設定要點留作歷史紀錄:Streamable HTTP 要用 `httpUrl` 欄位(不是 `url`)、伺服器名稱不能包含底線。真實工具呼叫的驗證則改在 Antigravity CLI 上完成(見下)。
+
+安裝:`curl -fsSL https://antigravity.google/cli/install.sh | bash`(裝到 `~/.local/bin/agy`)。
+
+MCP 設定檔位置:`~/.gemini/config/mcp_config.json`(Antigravity CLI 與 Antigravity IDE 共用)。**與 Gemini CLI 的差異**:Streamable HTTP 改用 `serverUrl` 欄位(不是 `httpUrl`);設定檔不支援環境變數展開,API Key 需寫入實際值。
 
 ```jsonc
 {
   "mcpServers": {
     "local-llm-mcp-stdio": {
-      "command": "/home/<user>/local-llm-mcp/.venv/bin/python",
-      "args": ["-m", "local_llm_mcp.server"]
+      "command": "/home/<user>/local-llm-mcp/.venv/bin/local-llm-mcp",
+      "args": []
     },
     "local-llm-mcp-http": {
-      "httpUrl": "http://127.0.0.1:8000/mcp",
+      "serverUrl": "http://localhost:8000/mcp",
       "headers": {
         "Authorization": "Bearer <YOUR_API_KEY>"
       }
@@ -298,9 +302,11 @@ WSL2 NAT 模式(預設)下,Windows → WSL2 的 localhost forwarding 是內建�
 }
 ```
 
-用 `gemini mcp list` 確認兩個都顯示 Connected(這個健康檢查本身不需要 Google 帳號登入)。實際呼叫工具、用 `/mcp` 看到 prompts 被自動轉成的 slash command,需要先完成一次 Google 帳號的互動登入。
+啟動 `agy` 完成 Google OAuth 後,輸入 `/mcp` 可看到兩個 server 與全部 7 個工具。實測(2026-07-17,v1.1.3):
 
-`docs/screenshots/gemini-cli/`(截圖待補)
+![Antigravity CLI /mcp 顯示兩個 server 各 7 tools](docs/screenshots/antigravity-cli/mcp-list.png)
+
+![Antigravity CLI 經 Streamable HTTP + API Key 真實呼叫 list_local_models 成功](docs/screenshots/antigravity-cli/tool-call-success.png)
 
 ---
 
@@ -314,7 +320,8 @@ WSL2 NAT 模式(預設)下,Windows → WSL2 的 localhost forwarding 是內建�
 | Claude Code(Windows) | Windows(既有已登入 CLI) | Streamable HTTP + API Key | `claude mcp list` 顯示 Connected | 已驗證:真實呼叫 `list_local_models`,正確生成模型表格 | 未測 | 端到端證明 Streamable HTTP + API Key 可用 |
 | Claude Code(WSL) | WSL | stdio 與 HTTP+Key 皆測 | 兩者皆 Connected(各 7 tools) | ✅ 已驗證(2026-07-17):真實呼叫 `list_local_models` 成功,見下方截圖 | 未測 | 證實同環境內 stdio 沒有跨界問題(純 Linux pipe) |
 | LM Studio | Windows | Streamable HTTP + API Key | Integrations 面板顯示已連線 | 已驗證:真實呼叫 `list_local_models`,含官方工具確認對話框 | 僅 Tools,無 Resources / Prompts | 符合官方已知限制;NAT 模式 localhost forwarding 免改 `.wslconfig` |
-| Gemini CLI | WSL | stdio 與 HTTP+Key(`httpUrl`)皆測 | `gemini mcp list` 兩者皆 Connected(免登入) | 待 Google 帳號登入後測試 | 待登入後測試 | `httpUrl`(非 `url`)+ 連字號命名皆確認正確 |
+| Gemini CLI(已停役) | WSL | stdio 與 HTTP+Key(`httpUrl`)皆測 | `gemini mcp list` 兩者皆 Connected(2026-07-15,免登入) | 無法完成:Google 於 2026-06-18 對個人用戶停服 | — | 歷史紀錄:`httpUrl`(非 `url`)+ 連字號命名皆確認正確;由 Antigravity CLI 接替 |
+| **Antigravity CLI** | WSL | stdio 與 HTTP+Key(`serverUrl`)皆設 | `/mcp` 面板兩者皆 ✓(各 7 tools) | ✅ 已驗證(2026-07-17,v1.1.3):經 **Streamable HTTP + API Key** 真實呼叫 `list_local_models` 成功,見下方截圖 | 未測 | Gemini CLI 的接替者(閉源 Go 重寫);設定檔改為 `~/.gemini/config/mcp_config.json`,HTTP 欄位改名 `serverUrl`,不支援環境變數展開 |
 | Felo(選配) | 雲端 | SSE 或 Streamable HTTP(表單可選) | 已確認支援自訂 MCP server(2026-07-15 Pro 帳號實測:表單含服務名稱 / 連接模式 / URL / Header) | 未做(需先以 tunnel 曝露本機 server) | 未測 | 推翻「官方文件查無證據」的舊結論;端到端串接與風險分析見 DESIGN.md §4.3 |
 
 ---

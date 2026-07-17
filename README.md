@@ -248,7 +248,11 @@ claude mcp list
 claude -p "列出本機有哪些 Ollama 模型" --allowedTools mcp__local-llm-mcp__list_local_models
 ```
 
-`docs/screenshots/claude-code/`(截圖待補)
+實測截圖(2026-07-17,WSL 內):
+
+![Claude Code /mcp 顯示 stdio 與 HTTP 兩個 server 各 7 tools connected](docs/screenshots/claude-code/mcp-list.png)
+
+![Claude Code 真實呼叫 list_local_models 成功](docs/screenshots/claude-code/tool-call-success.png)
 
 ### LM Studio(Windows,Streamable HTTP)
 
@@ -308,7 +312,7 @@ WSL2 NAT 模式(預設)下,Windows → WSL2 的 localhost forwarding 是內建�
 |---|---|---|---|---|---|---|
 | Claude Desktop | Windows(config 指向 WSL) | stdio,經 `wsl.exe` + BOM 修正 | 已驗證(Node.js `spawn` 模擬完整 `initialize` 交握) | ✅ 已驗證(2026-07-17):Connectors 清單顯示 local-llm-mcp,真實呼叫 `list_local_models` 成功,見下方截圖 | 支援(SDK 層級) | 發現並修正 `wsl.exe` pipe 首次寫入插入 BOM 的問題;custom connector 為雲端 brokered,只能走 stdio |
 | Claude Code(Windows) | Windows(既有已登入 CLI) | Streamable HTTP + API Key | `claude mcp list` 顯示 Connected | 已驗證:真實呼叫 `list_local_models`,正確生成模型表格 | 未測 | 端到端證明 Streamable HTTP + API Key 可用 |
-| Claude Code(WSL) | WSL | stdio 與 HTTP+Key 皆測 | 兩者皆 Connected | 待帳號登入後測試 | 未測 | 證實同環境內 stdio 沒有跨界問題(純 Linux pipe) |
+| Claude Code(WSL) | WSL | stdio 與 HTTP+Key 皆測 | 兩者皆 Connected(各 7 tools) | ✅ 已驗證(2026-07-17):真實呼叫 `list_local_models` 成功,見下方截圖 | 未測 | 證實同環境內 stdio 沒有跨界問題(純 Linux pipe) |
 | LM Studio | Windows | Streamable HTTP + API Key | Integrations 面板顯示已連線 | 已驗證:真實呼叫 `list_local_models`,含官方工具確認對話框 | 僅 Tools,無 Resources / Prompts | 符合官方已知限制;NAT 模式 localhost forwarding 免改 `.wslconfig` |
 | Gemini CLI | WSL | stdio 與 HTTP+Key(`httpUrl`)皆測 | `gemini mcp list` 兩者皆 Connected(免登入) | 待 Google 帳號登入後測試 | 待登入後測試 | `httpUrl`(非 `url`)+ 連字號命名皆確認正確 |
 | Felo(選配) | 雲端 | SSE 或 Streamable HTTP(表單可選) | 已確認支援自訂 MCP server(2026-07-15 Pro 帳號實測:表單含服務名稱 / 連接模式 / URL / Header) | 未做(需先以 tunnel 曝露本機 server) | 未測 | 推翻「官方文件查無證據」的舊結論;端到端串接與風險分析見 DESIGN.md §4.3 |

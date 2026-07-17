@@ -215,7 +215,11 @@ uvx --from git+https://github.com/<owner>/local-llm-mcp local-llm-mcp
 
 另外,Claude Desktop 設定裡 `env` 區塊只作用在 Windows 端的 `wsl.exe` process,**不會**傳進 WSL 內的 server process;若要帶環境變數,改用 `bash -c "VAR=xxx exec ..."` 的內嵌寫法。專案路徑建議放在 WSL 的 ext4 檔案系統(`/home/...`)且避免空白字元,`--` 之後的路徑在某些情況下會被 WSL 端 shell 重新切開。
 
-`docs/screenshots/claude-desktop/`(截圖待補)
+實測截圖(2026-07-17):
+
+![Claude Desktop Connectors 清單中的 local-llm-mcp](docs/screenshots/claude-desktop/connectors-list.png)
+
+![Claude Desktop 真實呼叫 list_local_models 成功](docs/screenshots/claude-desktop/tool-call-success.png)
 
 ### Claude Code
 
@@ -302,7 +306,7 @@ WSL2 NAT 模式(預設)下,Windows → WSL2 的 localhost forwarding 是內建�
 
 | Client | 執行環境 | Transport | 連線驗證 | 真實工具呼叫 | Resources / Prompts | 備註 |
 |---|---|---|---|---|---|---|
-| Claude Desktop | Windows(config 指向 WSL) | stdio,經 `wsl.exe` + BOM 修正 | 已驗證(Node.js `spawn` 模擬完整 `initialize` 交握) | 需完整重啟 Claude Desktop 後於客戶端內確認 | 支援(SDK 層級) | 發現並修正 `wsl.exe` pipe 首次寫入插入 BOM 的問題;custom connector 為雲端 brokered,只能走 stdio |
+| Claude Desktop | Windows(config 指向 WSL) | stdio,經 `wsl.exe` + BOM 修正 | 已驗證(Node.js `spawn` 模擬完整 `initialize` 交握) | ✅ 已驗證(2026-07-17):Connectors 清單顯示 local-llm-mcp,真實呼叫 `list_local_models` 成功,見下方截圖 | 支援(SDK 層級) | 發現並修正 `wsl.exe` pipe 首次寫入插入 BOM 的問題;custom connector 為雲端 brokered,只能走 stdio |
 | Claude Code(Windows) | Windows(既有已登入 CLI) | Streamable HTTP + API Key | `claude mcp list` 顯示 Connected | 已驗證:真實呼叫 `list_local_models`,正確生成模型表格 | 未測 | 端到端證明 Streamable HTTP + API Key 可用 |
 | Claude Code(WSL) | WSL | stdio 與 HTTP+Key 皆測 | 兩者皆 Connected | 待帳號登入後測試 | 未測 | 證實同環境內 stdio 沒有跨界問題(純 Linux pipe) |
 | LM Studio | Windows | Streamable HTTP + API Key | Integrations 面板顯示已連線 | 已驗證:真實呼叫 `list_local_models`,含官方工具確認對話框 | 僅 Tools,無 Resources / Prompts | 符合官方已知限制;NAT 模式 localhost forwarding 免改 `.wslconfig` |

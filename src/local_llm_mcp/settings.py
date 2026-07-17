@@ -49,3 +49,12 @@ HTTP_PATH = os.environ.get("LOCAL_LLM_MCP_HTTP_PATH", "/mcp")
 # Left unset for stdio-only use; server.py refuses to start the HTTP transport
 # without it (fail fast rather than silently serving with no auth).
 API_KEY = os.environ.get("LOCAL_LLM_MCP_API_KEY")
+
+# --- Optional cloud delegation (web_search tool) -----------------------------
+# The one deliberate exception to "nothing leaves the machine": web_search
+# sends its query to the Felo cloud API (hybrid privacy routing — see
+# DESIGN.md). Unset ⇒ the tool raises a structured error explaining how to
+# enable it; every *_private tool stays local-only regardless.
+FELO_API_KEY = os.environ.get("FELO_API_KEY")
+FELO_API_URL = os.environ.get("LOCAL_LLM_MCP_FELO_API_URL", "https://openapi.felo.ai/v2/chat")
+FELO_READ_TIMEOUT = _float_env("LOCAL_LLM_MCP_FELO_READ_TIMEOUT", 120.0)

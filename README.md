@@ -43,6 +43,7 @@ flowchart LR
     CC["Claude Code<br/>(Windows 端或 WSL 內)"] -->|"stdio 或 Streamable HTTP + API Key"| Server
     LMS["LM Studio<br/>(Windows)"] -->|"Streamable HTTP + API Key"| Server
     GC["Gemini CLI<br/>(WSL 內)"] -->|"stdio 或 Streamable HTTP + API Key<br/>(httpUrl)"| Server
+    Server -.->|"web_search(選配)<br/>唯一離開本機的路徑"| Felo["Felo Chat API<br/>(雲端)"]
 ```
 
 Server 與 Ollama 都跑在 WSL2 內;四個 client 分別以自己最合適的方式連進來,**兩種 transport 都要做,不是因為每個 client 都要兩種都測,而是因為不同 client 需要不同 transport**:
@@ -55,7 +56,7 @@ Server 與 Ollama 都跑在 WSL2 內;四個 client 分別以自己最合適的�
 
 ## 核心賣點
 
-1. **完整的 MCP 三大 primitive + 雙 transport + 官方驗證機制** —— 6 個 tools、1 個 resource、2 個 prompt,stdio 與 Streamable HTTP 都實作,HTTP 驗證用官方 `TokenVerifier` + `AuthSettings` 機制(而非自製 middleware),不是最小可行的 tool-only demo。
+1. **完整的 MCP 三大 primitive + 雙 transport + 官方驗證機制** —— 7 個 tools(6 個純本機 + 1 個選配的雲端搜尋,構成混合隱私分流)、1 個 resource、2 個 prompt,stdio 與 Streamable HTTP 都實作,HTTP 驗證用官方 `TokenVerifier` + `AuthSettings` 機制(而非自製 middleware),不是最小可行的 tool-only demo。
 2. **實測橫跨四個真實 MCP client**,涵蓋 Windows 原生程序呼叫 WSL2 內服務的跨邊界網路與程序模型細節(WSL2 NAT localhost forwarding、`wsl.exe` 程序模型、環境變數不會跨界傳遞等),不是紙上談兵的相容性宣稱。
 3. **發現並修正兩個先前完全沒有文件記錄的問題**:
    - 官方 MCP Python SDK v1.x 的 `Context.report_progress()` 從未設定 `related_request_id`,導致 Streamable HTTP 下進度通知被路由到錯誤的 stream(讀 SDK 原始碼定位,對照 issue #953 / #2001 確認至今未在 v1 修復,僅修進 v2)。實作了一個 workaround helper,並用官方 client SDK 的 `progress_callback` 實測驗證 —— stdio 與 Streamable HTTP 下都收到 4 筆與 Ollama 回報位元組數精確對應的進度通知。
@@ -76,6 +77,7 @@ Server 與 Ollama 都跑在 WSL2 內;四個 client 分別以自己最合適的�
 | `extract_json` | 依呼叫端在執行期提供的任意 JSON Schema 抽取結構化資料,溫度固定為 0(用 Ollama 的 `format=` 結構化輸出,而非 SDK 靜態 `outputSchema` 推導) |
 | `list_local_models` | 列出本機所有 Ollama 模型(`parameter_size`、`quantization_level`、`family`、`context_length`) |
 | `pull_model` | 下載 Ollama 模型,透過 MCP progress 通知回報下載進度 |
+| `web_search`(選配) | **唯一刻意離開本機的工具**:透過 Felo Chat API 做即時網路搜尋,回傳附引用來源的答案。工具描述明確標注隱私邊界,讓呼叫端 LLM 能正確分流——敏感內容走 `*_private` 工具(全程本機),公開知識查詢走 `web_search`(雲端)。未設定 `FELO_API_KEY` 時回傳結構化錯誤,其餘工具不受影響 |
 
 ### Resource
 

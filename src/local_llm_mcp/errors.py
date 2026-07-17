@@ -41,3 +41,16 @@ class OllamaTimeoutError(ToolError):
             f"'{tool}' timed out after {timeout_seconds:.0f}s waiting for Ollama. "
             "The model may be cold-loading, or the input/context length may be too large."
         )
+
+
+class WebSearchNotConfiguredError(ToolError):
+    def __init__(self):
+        super().__init__(
+            "web_search requires FELO_API_KEY to be set (felo.ai → Settings → API Keys). "
+            "All *_private tools keep working locally without it."
+        )
+
+
+class WebSearchUpstreamError(ToolError):
+    def __init__(self, detail: str):
+        super().__init__(f"web_search failed: {detail}")

@@ -29,6 +29,7 @@ from .tools import (
     pull_model,
     summarize_private,
     translate_private,
+    web_search,
 )
 
 logging.basicConfig(
@@ -46,6 +47,7 @@ def _register_all(mcp: FastMCP) -> None:
     extract_json.register(mcp)
     list_local_models.register(mcp)
     pull_model.register(mcp)
+    web_search.register(mcp)
     resources.register(mcp)
     prompts.register(mcp)
 

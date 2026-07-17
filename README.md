@@ -1,5 +1,12 @@
 # local-llm-mcp
 
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![License: MIT](https://img.shields.io/badge/license-MIT-green)
+![MCP SDK](https://img.shields.io/badge/mcp-1.x-8A2BE2)
+<!-- TODO(publish): 上 GitHub 後把下面這行換成真實 repo 路徑並取消註解
+[![CI](https://github.com/<GITHUB_USER>/local-llm-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/<GITHUB_USER>/local-llm-mcp/actions/workflows/ci.yml)
+-->
+
 **一個生產等級的 MCP Server:讓 Claude Desktop、Claude Code、LM Studio、Gemini CLI 等任何 MCP client,把摘要、翻譯、資訊抽取這類敏感任務委派給本機 Ollama 上的開源模型執行 —— 文件內容全程留在本機,不經過雲端 LLM。**
 
 完整實作 MCP 的三大 primitive(Tools / Resources / Prompts)、雙 transport(stdio / Streamable HTTP)、官方機制的 API Key 驗證,並實測橫跨四個真實 MCP client。過程中挖出並修正了兩個此前無人記錄的問題 —— 詳見下方「核心賣點」。
@@ -298,7 +305,7 @@ WSL2 NAT 模式(預設)下,Windows → WSL2 的 localhost forwarding 是內建�
 | Claude Code(WSL) | WSL | stdio 與 HTTP+Key 皆測 | 兩者皆 Connected | 待帳號登入後測試 | 未測 | 證實同環境內 stdio 沒有跨界問題(純 Linux pipe) |
 | LM Studio | Windows | Streamable HTTP + API Key | Integrations 面板顯示已連線 | 已驗證:真實呼叫 `list_local_models`,含官方工具確認對話框 | 僅 Tools,無 Resources / Prompts | 符合官方已知限制;NAT 模式 localhost forwarding 免改 `.wslconfig` |
 | Gemini CLI | WSL | stdio 與 HTTP+Key(`httpUrl`)皆測 | `gemini mcp list` 兩者皆 Connected(免登入) | 待 Google 帳號登入後測試 | 待登入後測試 | `httpUrl`(非 `url`)+ 連字號命名皆確認正確 |
-| Felo(選配) | 雲端 | 待查證 | 需 Pro 帳號檢查「+ 新增 MCP 服務」按鈕 | — | — | 官方文件找不到證據,但第三方部落格截圖顯示 UI 上有這個按鈕(該部落客本人也未實測成功),需使用者親自確認,詳見 DESIGN.md |
+| Felo(選配) | 雲端 | SSE 或 Streamable HTTP(表單可選) | 已確認支援自訂 MCP server(2026-07-15 Pro 帳號實測:表單含服務名稱 / 連接模式 / URL / Header) | 未做(需先以 tunnel 曝露本機 server) | 未測 | 推翻「官方文件查無證據」的舊結論;端到端串接與風險分析見 DESIGN.md §4.3 |
 
 ---
 
@@ -329,4 +336,4 @@ WSL2 NAT 模式(預設)下,Windows → WSL2 的 localhost forwarding 是內建�
 
 ## 授權
 
-MIT — 詳見 [`pyproject.toml`](./pyproject.toml)。
+MIT — 詳見 [`LICENSE`](./LICENSE)。

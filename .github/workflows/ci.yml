@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: uv sync
+      # e2e tests self-skip when Ollama is unreachable (skipif guard probes
+      # localhost:11434), so running the full suite is safe in CI: 29 unit
+      # tests run, 6 e2e tests skip.
+      - name: Run tests
+        run: uv run pytest -q

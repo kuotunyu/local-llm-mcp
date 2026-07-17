@@ -5,6 +5,9 @@ description = "MCP server that delegates tasks to local Ollama models — privac
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
+authors = [{ name = "local-llm-mcp authors" }]
+# TODO(publish): add [project.urls] Homepage/Repository once the GitHub repo
+# exists, and replace the placeholder author name with the real account name.
 dependencies = [
     "mcp[cli]>=1.28.1,<2.0",
     "ollama>=0.6.2",

@@ -1,0 +1,7 @@
+# This project is developed and executed inside WSL (Linux). Force LF so the
+# Windows-side checkout never rewrites shell scripts / configs to CRLF, which
+# would break them when run from the WSL side of the same working tree.
+* text=auto eol=lf
+*.sh text eol=lf
+*.png binary
+*.gif binary

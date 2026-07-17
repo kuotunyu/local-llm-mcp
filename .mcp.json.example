@@ -1,0 +1,13 @@
+// Example project-scoped Claude Code config. Copy to .mcp.json and adjust paths.
+// API key is read from an env var, never hardcoded — see .env.example.
+{
+  "mcpServers": {
+    "local-llm-mcp": {
+      "type": "http",
+      "url": "${LOCAL_LLM_MCP_URL:-http://127.0.0.1:8000/mcp}",
+      "headers": {
+        "Authorization": "Bearer ${LOCAL_LLM_MCP_API_KEY}"
+      }
+    }
+  }
+}

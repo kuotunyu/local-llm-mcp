@@ -1,0 +1,39 @@
+{
+  "manifest_version": "0.4",
+  "name": "local-llm-mcp",
+  "version": "0.1.0",
+  "description": "Delegate tasks to local Ollama models — privacy-first: sensitive documents never leave the machine.",
+  "server": {
+    "type": "uv",
+    "entry_point": "src/local_llm_mcp/server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": ["run", "--directory", "${__dirname}", "python", "-m", "local_llm_mcp.server"],
+      "env": {
+        "OLLAMA_HOST": "${user_config.ollama_host}",
+        "LOCAL_LLM_MCP_DEFAULT_MODEL": "${user_config.default_model}"
+      }
+    }
+  },
+  "user_config": {
+    "ollama_host": {
+      "type": "string",
+      "title": "Ollama Host",
+      "description": "Base URL of the Ollama server this machine's local-llm-mcp should talk to.",
+      "default": "http://127.0.0.1:11434",
+      "required": false
+    },
+    "default_model": {
+      "type": "string",
+      "title": "Default Model",
+      "description": "Ollama model tag used when a tool call doesn't specify one explicitly.",
+      "default": "cwchang/llama3-taide-lx-8b-chat-alpha1",
+      "required": false
+    }
+  },
+  "compatibility": {
+    "claude_desktop": ">=1.0.0",
+    "platforms": ["win32"],
+    "runtimes": { "python": ">=3.11" }
+  }
+}

@@ -275,7 +275,15 @@ WSL2 NAT 模式(預設)下,Windows → WSL2 的 localhost forwarding 是內建�
 
 **已知限制**:LM Studio 目前只支援 MCP 的 Tools primitive,Integrations 面板不會顯示 Resources 或 Prompts。
 
-`docs/screenshots/lm-studio/`(截圖待補)
+**實測時發現的使用陷阱**(2026-07-17,qwen3-0.6b):如果對話歷史裡已經有一次工具呼叫的結果,小模型對同樣的問題**可能直接從歷史抄答案而不再真的呼叫工具**(回覆裡不會出現工具標籤,且內容可能過時或不完整)。要驗證工具鏈是否真的可用,務必開一個乾淨的新對話再測。
+
+實測截圖(2026-07-17):
+
+![LM Studio Integrations 面板,mcp/local-llm-mcp 已啟用](docs/screenshots/lm-studio/integrations-panel.png)
+
+![LM Studio 官方工具呼叫確認框(Proceed / Deny / Always allow)](docs/screenshots/lm-studio/tool-confirmation.png)
+
+![LM Studio 真實呼叫 list_local_models,兩個模型完整列出](docs/screenshots/lm-studio/tool-call-success.png)
 
 ### Antigravity CLI(WSL 內)—— 取代已停役的 Gemini CLI
 
@@ -319,7 +327,7 @@ MCP 設定檔位置:`~/.gemini/config/mcp_config.json`(Antigravity CLI 與 Antig
 | Claude Desktop | Windows(config 指向 WSL) | stdio,經 `wsl.exe` + BOM 修正 | 已驗證(Node.js `spawn` 模擬完整 `initialize` 交握) | ✅ 已驗證(2026-07-17):Connectors 清單顯示 local-llm-mcp,真實呼叫 `list_local_models` 成功,見下方截圖 | 支援(SDK 層級) | 發現並修正 `wsl.exe` pipe 首次寫入插入 BOM 的問題;custom connector 為雲端 brokered,只能走 stdio |
 | Claude Code(Windows) | Windows(既有已登入 CLI) | Streamable HTTP + API Key | `claude mcp list` 顯示 Connected | 已驗證:真實呼叫 `list_local_models`,正確生成模型表格 | 未測 | 端到端證明 Streamable HTTP + API Key 可用 |
 | Claude Code(WSL) | WSL | stdio 與 HTTP+Key 皆測 | 兩者皆 Connected(各 7 tools) | ✅ 已驗證(2026-07-17):真實呼叫 `list_local_models` 成功,見下方截圖 | 未測 | 證實同環境內 stdio 沒有跨界問題(純 Linux pipe) |
-| LM Studio | Windows | Streamable HTTP + API Key | Integrations 面板顯示已連線 | 已驗證:真實呼叫 `list_local_models`,含官方工具確認對話框 | 僅 Tools,無 Resources / Prompts | 符合官方已知限制;NAT 模式 localhost forwarding 免改 `.wslconfig` |
+| LM Studio | Windows | Streamable HTTP + API Key | Integrations 面板顯示已連線 | ✅ 已驗證(2026-07-15 初測,2026-07-17 重測並截圖):真實呼叫 `list_local_models`,含官方 Proceed/Deny 確認框,見下方截圖 | 僅 Tools,無 Resources / Prompts | 符合官方已知限制;NAT 模式 localhost forwarding 免改 `.wslconfig`;注意小模型會從對話歷史抄答案,驗證需開新對話 |
 | Gemini CLI(已停役) | WSL | stdio 與 HTTP+Key(`httpUrl`)皆測 | `gemini mcp list` 兩者皆 Connected(2026-07-15,免登入) | 無法完成:Google 於 2026-06-18 對個人用戶停服 | — | 歷史紀錄:`httpUrl`(非 `url`)+ 連字號命名皆確認正確;由 Antigravity CLI 接替 |
 | **Antigravity CLI** | WSL | stdio 與 HTTP+Key(`serverUrl`)皆設 | `/mcp` 面板兩者皆 ✓(各 7 tools) | ✅ 已驗證(2026-07-17,v1.1.3):經 **Streamable HTTP + API Key** 真實呼叫 `list_local_models` 成功,見下方截圖 | 未測 | Gemini CLI 的接替者(閉源 Go 重寫);設定檔改為 `~/.gemini/config/mcp_config.json`,HTTP 欄位改名 `serverUrl`,不支援環境變數展開 |
 | Felo(選配) | 雲端 | SSE 或 Streamable HTTP(表單可選) | 已確認支援自訂 MCP server(2026-07-15 Pro 帳號實測:表單含服務名稱 / 連接模式 / URL / Header) | 未做(需先以 tunnel 曝露本機 server) | 未測 | 推翻「官方文件查無證據」的舊結論;端到端串接與風險分析見 DESIGN.md §4.3 |

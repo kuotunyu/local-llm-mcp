@@ -19,7 +19,7 @@
 ## 目錄
 
 - [架構](#架構)
-- [核心賣點](#核心賣點)
+- [技術重點](#技術重點)
 - [功能](#功能)
 - [系統需求](#系統需求)
 - [安裝與快速開始](#安裝與快速開始)
@@ -57,7 +57,7 @@ Server 與 Ollama 都跑在 WSL2 內。**兩種 transport 都做的原因是不�
 
 ---
 
-## 核心賣點
+## 技術重點
 
 **完整度,不是最小可行 demo**
 
@@ -66,6 +66,7 @@ Server 與 Ollama 都跑在 WSL2 內。**兩種 transport 都做的原因是不�
 **四個真實 client 實測**
 
 涵蓋 Windows 原生程序呼叫 WSL2 內服務的細節:NAT localhost forwarding、`wsl.exe` 程序模型、環境變數不會跨界傳遞。
+
 **SDK 的 progress 路由缺陷**
 
 官方 MCP Python SDK v1.x 的 `Context.report_progress()` 沒帶 `related_request_id`,Streamable HTTP 下進度通知會被路由到錯的 stream。判斷依據是同一個檔案裡的 `Context.log()` **有**帶 —— 是遺漏,不是設計。

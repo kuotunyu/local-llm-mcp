@@ -18,7 +18,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
-        run: uv sync
+        # --frozen: install exactly what uv.lock pins, so CI and local runs
+        # resolve the same dependency versions instead of drifting apart.
+        run: uv sync --frozen
       # e2e tests self-skip when Ollama is unreachable (skipif guard probes
       # localhost:11434), so running the full suite is safe in CI: the unit
       # tests run and the e2e tests skip. Deliberately no counts here - they

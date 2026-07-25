@@ -59,7 +59,7 @@ Server 與 Ollama 都跑在 WSL2 內;四個 client 分別以自己最合適的�
 1. **完整的 MCP 三大 primitive + 雙 transport + 官方驗證機制** —— 7 個 tools(6 個純本機 + 1 個選配的雲端搜尋,構成混合隱私分流)、1 個 resource、2 個 prompt,stdio 與 Streamable HTTP 都實作,HTTP 驗證用官方 `TokenVerifier` + `AuthSettings` 機制(而非自製 middleware),不是最小可行的 tool-only demo。
 2. **實測橫跨四個真實 MCP client**,涵蓋 Windows 原生程序呼叫 WSL2 內服務的跨邊界網路與程序模型細節(WSL2 NAT localhost forwarding、`wsl.exe` 程序模型、環境變數不會跨界傳遞等),不是紙上談兵的相容性宣稱。
 3. **發現並修正兩個先前完全沒有文件記錄的問題**:
-   - 官方 MCP Python SDK v1.x 的 `Context.report_progress()` 從未設定 `related_request_id`,導致 Streamable HTTP 下進度通知被路由到錯誤的 stream(讀 SDK 原始碼定位,對照 issue #953 / #2001 確認至今未在 v1 修復,僅修進 v2)。實作了一個 workaround helper,並用官方 client SDK 的 `progress_callback` 實測驗證 —— stdio 與 Streamable HTTP 下都收到 4 筆與 Ollama 回報位元組數精確對應的進度通知。
+   - 官方 MCP Python SDK v1.x 的 `Context.report_progress()` 沒有設定 `related_request_id`,導致 Streamable HTTP 下進度通知被路由到錯誤的 stream(讀 SDK 原始碼定位,並對照同一個檔案裡確實有帶上這個欄位的 `Context.log()`,證明是遺漏而非設計如此)。實作了一個 workaround helper,並用官方 client SDK 的 `progress_callback` 實測驗證 —— stdio 與 Streamable HTTP 下都收到 4 筆與 Ollama 回報位元組數精確對應的進度通知。回頭複查上游(2026-07-25)發現維護者已於 2026-06-26 以 PR #2994 把修正補進 `v1.x` 分支,但那次 merge 比 1.28.1 上架 PyPI 晚約 46 分鐘、剛好錯過,至今沒有任何已發行的 1.x 含這個修正(最新仍是 1.28.1),因此在本專案 pin 的 `>=1.28.1,<2.0` 範圍內 workaround 仍然必要,待下一個 1.x release 後即可移除。
    - `wsl.exe` 在啟動 stdio server 時,pipe 生命週期中**第一次寫入**會被插入 3 bytes 的 UTF-8 BOM,即使 Windows 端寫入的原始 bytes 完全沒有 BOM 也一樣發生。MCP 的第一個訊息永遠是 `initialize` request,這個 BOM 會讓 JSON parser 直接失敗,導致 Claude Desktop 每次啟動都連不上。查證階段的公開文件與社群文章完全沒有提過這個現象 —— 是用 Node.js `child_process.spawn` 逐 byte 比對輸出才挖出來的,修正方式是在啟動指令中插入一段 `sed` 過濾。
 4. **對「本地模型處理不可信文件」的 prompt injection 風險有具體分析與緩解設計**:輸出一律視為資料而非指令(host 端不應自動執行摘要/翻譯結果中的指令)、輸出長度上限、不做工具鏈自動串接;也記錄了若日後要把 Streamable HTTP 公開曝露(如透過 cloudflared tunnel)所需的縱深防禦考量。
 

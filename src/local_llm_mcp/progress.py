@@ -1,15 +1,25 @@
-"""Workaround for a known mcp v1.x bug: `Context.report_progress()` never sets
-`related_request_id` on the outgoing notification, so under Streamable HTTP the
-progress message gets routed to the wrong (standalone GET) stream, or silently
-dropped entirely in stateless/JSON-response mode. See RESEARCH.md section 3
-(issues #953 / #2001 — fixed only in the v2 `mcp.server.mcpserver` module, never
-backported to v1's `mcp.server.fastmcp`).
+"""Workaround for an mcp v1.x routing bug: `Context.report_progress()` does not
+set `related_request_id` on the outgoing notification, so under Streamable HTTP
+the progress message gets routed to the wrong (standalone GET) stream, or
+silently dropped entirely in stateless/JSON-response mode. `Context.log()` in
+the same SDK file does pass the field — that contrast is what identifies this as
+an omission rather than a deliberate design. See RESEARCH.md section 3
+(issues #953 / #2001).
+
+Upstream status, rechecked 2026-07-25: fixed on a maintenance branch, but not in
+anything installable. The v2 line got the missing field in `mcp.server.mcpserver`
+(#2002 proposed the line, #2038 landed it). On the v1 line, PR #2994 added it to
+`mcp/server/fastmcp/server.py` on the `v1.x` branch on 2026-06-26 — roughly 46
+minutes after 1.28.1 was uploaded to PyPI, so it missed that release, and 1.28.1
+is still the newest 1.x. Checked the `v1.28.0` and `v1.28.1` tags directly:
+neither carries the field. Every version inside this project's
+`mcp>=1.28.1,<2.0` pin therefore still needs this helper.
 
 stdio has no such multiplexed-stream routing problem, but every tool in this
 project calls this helper instead of `ctx.report_progress()` directly, so the
-workaround lives in exactly one place and is trivial to drop once the SDK fixes
-it upstream (verify with the repro command in RESEARCH.md section 3 before
-removing this).
+workaround lives in exactly one place. Drop it once a 1.x release containing
+#2994 ships — confirm against the installed version first with the repro command
+in RESEARCH.md section 3.
 """
 
 from __future__ import annotations

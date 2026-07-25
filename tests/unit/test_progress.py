@@ -2,9 +2,14 @@
 
 The real bug this guards against: mcp v1.x's own Context.report_progress()
 never sets `related_request_id`, so progress notifications get misrouted or
-silently dropped under Streamable HTTP. These tests assert our replacement
-always forwards `related_request_id=ctx.request_id` and no-ops cleanly when
-the client didn't ask for progress (no progressToken).
+silently dropped under Streamable HTTP. Fixed upstream on the `v1.x` branch by
+PR #2994 (2026-06-26), but no released 1.x carries it yet — 1.28.1 is still the
+newest and predates that merge by about 46 minutes — so within this project's
+`mcp>=1.28.1,<2.0` pin both the workaround and these tests still apply.
+
+These tests assert our replacement always forwards
+`related_request_id=ctx.request_id` and no-ops cleanly when the client didn't
+ask for progress (no progressToken).
 """
 
 from types import SimpleNamespace

@@ -2,7 +2,7 @@
 
 This is deliberately a Resource, not a Tool: it's a snapshot of current
 machine state a client GETs (and can watch/re-read), not an action with side
-effects — see DESIGN.md for the tools-vs-resources rationale. Same underlying
+effects. Same underlying
 data as the list_local_models tool (tools/list_local_models.py); both share
 ollama_client.list_local_models_info().
 """

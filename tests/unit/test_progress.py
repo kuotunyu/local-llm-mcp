@@ -1,4 +1,4 @@
-"""Tests for the ctx.report_progress() workaround (see RESEARCH.md section 3).
+"""Tests for the ctx.report_progress() workaround in progress.py.
 
 The real bug this guards against: mcp v1.x's own Context.report_progress()
 never sets `related_request_id`, so progress notifications get misrouted or

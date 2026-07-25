@@ -6,7 +6,7 @@ a few minutes. Run with: `uv run python scripts/bench_latency.py`
 Each model gets one untimed warmup call first, so the reported numbers
 reflect steady-state inference speed rather than one-time disk-to-VRAM model
 load time (which is dominated by file size / disk speed, not the thing this
-benchmark is trying to compare — see PLAN.md section 11).
+benchmark is trying to compare).
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from mcp.client.stdio import stdio_client
 SERVER_CMD = StdioServerParameters(command=sys.executable, args=["-m", "local_llm_mcp.server"])
 
 DEFAULT_MODEL = "cwchang/llama3-taide-lx-8b-chat-alpha1"  # 8.0B, Q5_K_M
-SMALL_MODEL = "qwen2.5:3b"  # 3B, cross-family comparator (see PLAN.md section 1)
+SMALL_MODEL = "qwen2.5:3b"  # 3B, deliberately a different model family
 
 SHORT_TEXT = "今天天氣很好,適合出門散步。"
 LONG_TEXT = (

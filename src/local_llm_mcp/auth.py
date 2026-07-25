@@ -3,10 +3,11 @@
 Uses the official SDK's TokenVerifier + AuthSettings mechanism rather than
 hand-rolled ASGI middleware: `issuer_url` is a placeholder the SDK never
 dereferences (it only appears in the WWW-Authenticate/.well-known metadata),
-while `resource_server_url` should be this server's real, reachable URL. See
-RESEARCH.md section 2 for the full investigation (including confirmation,
-read from the SDK source, that binding host="127.0.0.1" auto-enables Origin/
-Host validation — see transport_security in server.py's FastMCP construction).
+while `resource_server_url` should be this server's real, reachable URL.
+
+Binding host="127.0.0.1" additionally auto-enables the SDK's Origin/Host
+validation (confirmed by reading the SDK source) — see transport_security in
+server.py's FastMCP construction.
 """
 
 from __future__ import annotations

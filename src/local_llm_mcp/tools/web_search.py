@@ -5,7 +5,7 @@ DOES send its input to a cloud service. Together they demonstrate hybrid
 privacy routing — sensitive content stays on-device (Ollama), while
 public-knowledge questions that need fresh web results are delegated to the
 cloud, with the boundary made explicit in each tool's description so the
-calling LLM can route correctly. See DESIGN.md for the routing rationale.
+calling LLM can route correctly.
 """
 
 from __future__ import annotations

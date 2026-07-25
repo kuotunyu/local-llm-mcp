@@ -39,7 +39,7 @@ flowchart LR
         Server --- Ollama
     end
 
-    CD["Claude Desktop<br/>(Windows)"] -->|"stdio 經 wsl.exe<br/>(+ BOM 修正)"| Server
+    CD["Claude Desktop<br/>(Windows)"] -->|"stdio 經 wsl.exe"| Server
     CC["Claude Code<br/>(Windows 端或 WSL 內)"] -->|"stdio 或 Streamable HTTP + API Key"| Server
     LMS["LM Studio<br/>(Windows)"] -->|"Streamable HTTP + API Key"| Server
     GC["Gemini CLI<br/>(WSL 內)"] -->|"stdio 或 Streamable HTTP + API Key<br/>(httpUrl)"| Server
@@ -58,9 +58,9 @@ Server 與 Ollama 都跑在 WSL2 內;四個 client 分別以自己最合適的�
 
 1. **完整的 MCP 三大 primitive + 雙 transport + 官方驗證機制** —— 7 個 tools(6 個純本機 + 1 個選配的雲端搜尋,構成混合隱私分流)、1 個 resource、2 個 prompt,stdio 與 Streamable HTTP 都實作,HTTP 驗證用官方 `TokenVerifier` + `AuthSettings` 機制(而非自製 middleware),不是最小可行的 tool-only demo。
 2. **實測橫跨四個真實 MCP client**,涵蓋 Windows 原生程序呼叫 WSL2 內服務的跨邊界網路與程序模型細節(WSL2 NAT localhost forwarding、`wsl.exe` 程序模型、環境變數不會跨界傳遞等),不是紙上談兵的相容性宣稱。
-3. **發現並修正兩個先前完全沒有文件記錄的問題**:
+3. **兩個靠實測挖出來的深層問題,其中一個的歸因後來被自己推翻**:
    - 官方 MCP Python SDK v1.x 的 `Context.report_progress()` 沒有設定 `related_request_id`,導致 Streamable HTTP 下進度通知被路由到錯誤的 stream(讀 SDK 原始碼定位,並對照同一個檔案裡確實有帶上這個欄位的 `Context.log()`,證明是遺漏而非設計如此)。實作了一個 workaround helper,並用官方 client SDK 的 `progress_callback` 實測驗證 —— stdio 與 Streamable HTTP 下都收到 4 筆與 Ollama 回報位元組數精確對應的進度通知。回頭複查上游(2026-07-25)發現維護者已於 2026-06-26 以 PR #2994 把修正補進 `v1.x` 分支,但那次 merge 比 1.28.1 上架 PyPI 晚約 46 分鐘、剛好錯過,至今沒有任何已發行的 1.x 含這個修正(最新仍是 1.28.1),因此在本專案 pin 的 `>=1.28.1,<2.0` 範圍內 workaround 仍然必要,待下一個 1.x release 後即可移除。
-   - `wsl.exe` 在啟動 stdio server 時,pipe 生命週期中**第一次寫入**會被插入 3 bytes 的 UTF-8 BOM,即使 Windows 端寫入的原始 bytes 完全沒有 BOM 也一樣發生。MCP 的第一個訊息永遠是 `initialize` request,這個 BOM 會讓 JSON parser 直接失敗,導致 Claude Desktop 每次啟動都連不上。查證階段的公開文件與社群文章完全沒有提過這個現象 —— 是用 Node.js `child_process.spawn` 逐 byte 比對輸出才挖出來的,修正方式是在啟動指令中插入一段 `sed` 過濾。
+   - stdio 啟動時,pipe 生命週期中**第一次寫入**的開頭會出現 3 bytes 的 UTF-8 BOM,而 MCP 的第一個訊息永遠是 `initialize` request,這個 BOM 會讓 JSON parser 直接失敗。這是用 Node.js `child_process.spawn` 逐 byte 比對才量到的(送出 11 bytes、收到 14 bytes),當時歸因為 `wsl.exe` 的缺陷。**2026-07-25 為了回報上游而重新設計對照實驗,推翻了這個歸因** —— BOM 來自 Windows PowerShell 5.1 在 code page 65001 下的文字模式管線(關鍵對照組:路徑裡完全沒有 `wsl.exe` 時同樣出現 BOM,改由 `cmd.exe` 處理管線則乾淨),`wsl.exe` 本身逐 byte 乾淨,原本的 `sed` workaround 也證實不必要。觸發條件收斂到 `chcp 65001` 有、`chcp 437` 沒有;機制是 PS 5.1 依 console code page 建立的文字模式 pipeline writer 會寫出該編碼的 preamble,而 `StreamWriter` 的 preamble 只寫一次——正好解釋「只有第一次寫入」。Claude Desktop 當初連不上的真正原因仍未定案。
 4. **對「本地模型處理不可信文件」的 prompt injection 風險有具體分析與緩解設計**:輸出一律視為資料而非指令(host 端不應自動執行摘要/翻譯結果中的指令)、輸出長度上限、不做工具鏈自動串接;也記錄了若日後要把 Streamable HTTP 公開曝露(如透過 cloudflared tunnel)所需的縱深防禦考量。
 
 ---
@@ -190,7 +190,7 @@ uvx --from git+https://github.com/<owner>/local-llm-mcp local-llm-mcp
 
 設定檔位置:`%APPDATA%\Claude\claude_desktop_config.json`。編輯後**必須完全關閉重開**(不是關視窗就好,工作管理員/系統匣層級)。
 
-實作過程中發現:`wsl.exe` 在 pipe 第一次寫入時會插入 UTF-8 BOM,導致 `initialize` handshake 的 JSON 解析失敗(見上方「核心賣點」)。最終驗證通過的設定,是把啟動指令包一層 `sed`,在第一行過濾掉 BOM:
+直接呼叫 WSL 內的 Python 解譯器即可,不需要額外包裝(2026-07-25 用 Node.js `spawn` 模擬 Claude Desktop 的啟動方式重測,`initialize` → `notifications/initialized` → `tools/list` 全部正常):
 
 ```jsonc
 {
@@ -200,18 +200,25 @@ uvx --from git+https://github.com/<owner>/local-llm-mcp local-llm-mcp
       "args": [
         "-d", "<你的 WSL 發行版名稱>",
         "--",
-        "bash", "-c",
-        "sed -u '1s/^\\xef\\xbb\\xbf//' | /home/<user>/local-llm-mcp/.venv/bin/python3 -m local_llm_mcp.server"
+        "/home/<user>/local-llm-mcp/.venv/bin/python3", "-m", "local_llm_mcp.server"
       ]
     }
   }
 }
 ```
 
-兩個容易踩到的坑:
-
-1. **`sed` 一定要加 `-u`(unbuffered)**:輸出不是終端機時 `sed` 預設會 block-buffer,JSON 那一行會卡在 buffer 裡送不出去,造成請求逾時。
-2. **BOM pattern 必須包在單引號裡**:`1s/^\xef\xbb\xbf//` 若沒有額外包一層引號,bash 在 unquoted context 下會把 `\x` 解讀成「跳脫沒有特殊意義的字元」而直接吃掉反斜線,pattern 就整個失效。
+> **關於本專案早期曾使用的 `sed` 過濾**:先前的設定在啟動指令外包了一層 `bash -c "sed -u '1s/^\xef\xbb\xbf//' | ..."`,用來剝除第一個訊息開頭出現的 UTF-8 BOM。後續的對照實驗證實那個 BOM 來自 Windows PowerShell 5.1 在 code page 65001 下的管線,**不是 `wsl.exe`**,因此經 Claude Desktop(Node `spawn`)啟動時並不需要這一層。若你的啟動路徑中確實有 PowerShell 介入而遇到同樣的解析失敗,再改用下面這個形式:
+>
+> ```jsonc
+> "args": [
+>   "-d", "<你的 WSL 發行版名稱>",
+>   "--",
+>   "bash", "-c",
+>   "sed -u '1s/^\\xef\\xbb\\xbf//' | /home/<user>/local-llm-mcp/.venv/bin/python3 -m local_llm_mcp.server"
+> ]
+> ```
+>
+> 這個形式有兩個容易踩到的坑:(1)**`sed` 一定要加 `-u`(unbuffered)**——輸出不是終端機時 `sed` 預設會 block-buffer,JSON 那一行會卡在 buffer 裡送不出去,造成請求逾時;(2)**BOM pattern 必須包在單引號裡**——`1s/^\xef\xbb\xbf//` 若沒有額外包一層引號,bash 在 unquoted context 下會把 `\x` 解讀成「跳脫沒有特殊意義的字元」而直接吃掉反斜線,pattern 就整個失效。
 
 另外,Claude Desktop 設定裡 `env` 區塊只作用在 Windows 端的 `wsl.exe` process,**不會**傳進 WSL 內的 server process;若要帶環境變數,改用 `bash -c "VAR=xxx exec ..."` 的內嵌寫法。專案路徑建議放在 WSL 的 ext4 檔案系統(`/home/...`)且避免空白字元,`--` 之後的路徑在某些情況下會被 WSL 端 shell 重新切開。
 
@@ -320,23 +327,23 @@ MCP 設定檔位置:`~/.gemini/config/mcp_config.json`(Antigravity CLI 與 Antig
 
 ## 相容性矩陣
 
-實測結果(完整細節與每一項的驗證方式見 DESIGN.md):
+實測結果:
 
 | Client | 執行環境 | Transport | 連線驗證 | 真實工具呼叫 | Resources / Prompts | 備註 |
 |---|---|---|---|---|---|---|
-| Claude Desktop | Windows(config 指向 WSL) | stdio,經 `wsl.exe` + BOM 修正 | 已驗證(Node.js `spawn` 模擬完整 `initialize` 交握) | ✅ 已驗證(2026-07-17):Connectors 清單顯示 local-llm-mcp,真實呼叫 `list_local_models` 成功,見下方截圖 | 支援(SDK 層級) | 發現並修正 `wsl.exe` pipe 首次寫入插入 BOM 的問題;custom connector 為雲端 brokered,只能走 stdio |
+| Claude Desktop | Windows(config 指向 WSL) | stdio,經 `wsl.exe` | 已驗證(Node.js `spawn` 模擬完整 `initialize` 交握) | ✅ 已驗證(2026-07-17):Connectors 清單顯示 local-llm-mcp,真實呼叫 `list_local_models` 成功,見下方截圖 | 支援(SDK 層級) | 曾因第一個訊息開頭的 UTF-8 BOM 卡在 handshake,2026-07-25 對照實驗證實 BOM 來自 PowerShell 而非 `wsl.exe`;custom connector 為雲端 brokered,只能走 stdio |
 | Claude Code(Windows) | Windows(既有已登入 CLI) | Streamable HTTP + API Key | `claude mcp list` 顯示 Connected | 已驗證:真實呼叫 `list_local_models`,正確生成模型表格 | 未測 | 端到端證明 Streamable HTTP + API Key 可用 |
 | Claude Code(WSL) | WSL | stdio 與 HTTP+Key 皆測 | 兩者皆 Connected(各 7 tools) | ✅ 已驗證(2026-07-17):真實呼叫 `list_local_models` 成功,見下方截圖 | 未測 | 證實同環境內 stdio 沒有跨界問題(純 Linux pipe) |
 | LM Studio | Windows | Streamable HTTP + API Key | Integrations 面板顯示已連線 | ✅ 已驗證(2026-07-15 初測,2026-07-17 重測並截圖):真實呼叫 `list_local_models`,含官方 Proceed/Deny 確認框,見下方截圖 | 僅 Tools,無 Resources / Prompts | 符合官方已知限制;NAT 模式 localhost forwarding 免改 `.wslconfig`;注意小模型會從對話歷史抄答案,驗證需開新對話 |
 | Gemini CLI(已停役) | WSL | stdio 與 HTTP+Key(`httpUrl`)皆測 | `gemini mcp list` 兩者皆 Connected(2026-07-15,免登入) | 無法完成:Google 於 2026-06-18 對個人用戶停服 | — | 歷史紀錄:`httpUrl`(非 `url`)+ 連字號命名皆確認正確;由 Antigravity CLI 接替 |
 | **Antigravity CLI** | WSL | stdio 與 HTTP+Key(`serverUrl`)皆設 | `/mcp` 面板兩者皆 ✓(各 7 tools) | ✅ 已驗證(2026-07-17,v1.1.3):經 **Streamable HTTP + API Key** 真實呼叫 `list_local_models` 成功,見下方截圖 | 未測 | Gemini CLI 的接替者(閉源 Go 重寫);設定檔改為 `~/.gemini/config/mcp_config.json`,HTTP 欄位改名 `serverUrl`,不支援環境變數展開 |
-| Felo(選配) | 雲端 | SSE 或 Streamable HTTP(表單可選) | 已確認支援自訂 MCP server(2026-07-15 Pro 帳號實測:表單含服務名稱 / 連接模式 / URL / Header) | 未做(需先以 tunnel 曝露本機 server) | 未測 | 推翻「官方文件查無證據」的舊結論;端到端串接與風險分析見 DESIGN.md §4.3 |
+| Felo(選配) | 雲端 | SSE 或 Streamable HTTP(表單可選) | 已確認支援自訂 MCP server(2026-07-15 Pro 帳號實測:表單含服務名稱 / 連接模式 / URL / Header) | 未做(需先以 tunnel 曝露本機 server) | 未測 | 推翻「官方文件查無證據」的舊結論;端到端串接尚未實測 |
 
 ---
 
 ## 延遲量測摘要
 
-模型組合:預設 `cwchang/llama3-taide-lx-8b-chat-alpha1`(8B,Q5_K_M)vs 對照組 `qwen2.5:3b`(3B,跨家族對照)。RTX 4090,WSL2,`num_ctx=8192`,每個模型跑之前先做一次未計時的 warmup 呼叫,單次量測(非多輪平均)。完整方法論、備註與延遲量測腳本見 DESIGN.md 與 `scripts/bench_latency.py`。
+模型組合:預設 `cwchang/llama3-taide-lx-8b-chat-alpha1`(8B,Q5_K_M)vs 對照組 `qwen2.5:3b`(3B,跨家族對照)。RTX 4090,WSL2,`num_ctx=8192`,每個模型跑之前先做一次未計時的 warmup 呼叫,單次量測(非多輪平均)。完整方法論與延遲量測腳本見 `scripts/bench_latency.py`。
 
 | 工具 | 輸入 | TAIDE(8B) | qwen2.5:3b(3B) |
 |---|---|---|---|

@@ -79,8 +79,8 @@ async def test_http_requires_bearer_token(http_server):
     # own task group, so it propagates as an (Base)ExceptionGroup when the
     # `async with streamablehttp_client(...)` block itself exits — not
     # necessarily synchronously out of the `session.initialize()` await. Wrap
-    # the whole block, matching the behavior confirmed during Phase 3 manual
-    # verification (see RESEARCH.md section 2).
+    # the whole block, matching the behavior confirmed by manual verification
+    # against a running server.
     with pytest.raises(BaseExceptionGroup) as exc_info:
         async with streamablehttp_client(TEST_URL, headers={}) as (read, write, _get_session_id):
             async with ClientSession(read, write) as session:
@@ -105,9 +105,11 @@ async def test_http_initialize_and_real_tool_call(http_server, api_key):
 
 @pytest.mark.asyncio
 async def test_http_pull_model_reports_progress(http_server, api_key):
-    """Same regression check as the stdio test, but over Streamable HTTP —
-    RESEARCH.md section 3 found this only works if the server keeps the SDK
-    default (stateful + SSE) rather than stateless_http/json_response."""
+    """Same regression check as the stdio test, but over Streamable HTTP.
+
+    This only works while the server keeps the SDK default (stateful + SSE):
+    under stateless_http/json_response the notification is dropped instead of
+    reaching the caller."""
     headers = {"Authorization": f"Bearer {api_key}"}
     progress_events: list[tuple[float, float | None, str | None]] = []
 

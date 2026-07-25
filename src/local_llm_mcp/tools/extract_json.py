@@ -6,8 +6,7 @@ so this tool cannot rely on the SDK's static `outputSchema` auto-generation
 input). Instead it passes the caller's schema straight to Ollama's `format=`
 structured-output parameter and hands back the parsed JSON directly, with
 `structured_output=False` on the decorator so the SDK doesn't also try to
-generate a generic schema from the `dict` return annotation. See PLAN.md
-section 3.7.
+generate a generic schema from the `dict` return annotation.
 """
 
 from __future__ import annotations

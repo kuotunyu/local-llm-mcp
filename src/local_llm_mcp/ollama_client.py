@@ -1,7 +1,7 @@
 """Thin wrapper around the official `ollama` Python client.
 
 Centralizes: the httpx timeout (the upstream client defaults to `timeout=None`,
-i.e. wait forever — see RESEARCH.md section 4), the `num_ctx` default, and
+i.e. wait forever), the `num_ctx` default, and
 translation of transport-level failures into the structured `ToolError`
 subclasses in errors.py so tool code never has to catch raw httpx/ollama
 exceptions itself.
@@ -60,7 +60,7 @@ async def chat(
 def _context_length(model_info: dict[str, Any] | None) -> int | None:
     """Ollama exposes context length under an architecture-prefixed key (e.g.
     'llama.context_length', 'qwen3.context_length') — there is no fixed key
-    name, so scan for one ending in '.context_length'. See RESEARCH.md section 4.
+    name, so scan for one ending in '.context_length'.
     """
     if not model_info:
         return None

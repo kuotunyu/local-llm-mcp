@@ -3,8 +3,8 @@ set `related_request_id` on the outgoing notification, so under Streamable HTTP
 the progress message gets routed to the wrong (standalone GET) stream, or
 silently dropped entirely in stateless/JSON-response mode. `Context.log()` in
 the same SDK file does pass the field — that contrast is what identifies this as
-an omission rather than a deliberate design. See RESEARCH.md section 3
-(issues #953 / #2001).
+an omission rather than a deliberate design. Tracked upstream as issues #953 and
+#2001 in modelcontextprotocol/python-sdk.
 
 Upstream status, rechecked 2026-07-25: fixed on a maintenance branch, but not in
 anything installable. The v2 line got the missing field in `mcp.server.mcpserver`
@@ -18,8 +18,9 @@ neither carries the field. Every version inside this project's
 stdio has no such multiplexed-stream routing problem, but every tool in this
 project calls this helper instead of `ctx.report_progress()` directly, so the
 workaround lives in exactly one place. Drop it once a 1.x release containing
-#2994 ships — confirm against the installed version first with the repro command
-in RESEARCH.md section 3.
+#2994 ships — confirm against the installed version first with:
+
+    python -c "import inspect, mcp.server.fastmcp.server as s; print(inspect.getsource(s.Context.report_progress))"
 """
 
 from __future__ import annotations

@@ -19,7 +19,7 @@ def register(mcp: FastMCP) -> None:
 
         Not every progress line carries byte counts (e.g. the 'pulling manifest'
         and 'success' lines don't), so progress notifications are only sent for
-        lines that have both `total` and `completed` — see RESEARCH.md section 4.
+        lines that have both `total` and `completed`.
         """
         client = build_client()
         last_status = ""
@@ -37,7 +37,7 @@ def register(mcp: FastMCP) -> None:
                     await ctx.debug(f"{TOOL_NAME}: {chunk.status}")
         except ConnectionError as exc:
             # `ollama` wraps httpx.ConnectError as the builtin ConnectionError —
-            # see RESEARCH.md section 4 / ollama_client.py for the same pattern.
+            # see ollama_client.py for the same pattern.
             raise OllamaUnavailableError(settings.OLLAMA_HOST) from exc
 
         return f"Model '{model}' pulled successfully (final status: {last_status})."

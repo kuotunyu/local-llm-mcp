@@ -65,7 +65,7 @@ async def test_stdio_real_tool_call_and_error_path():
 
             # Structured error path: calling a model that isn't pulled locally
             # must come back as isError=True with our own message, not a crash
-            # or a raw traceback — see errors.py / RESEARCH.md section 4.
+            # or a raw traceback — see errors.py.
             result = await session.call_tool("ask_local", {"prompt": "hi", "model": "no-such-model-xyz"})
             assert result.isError
             assert "not available locally" in result.content[0].text
@@ -73,8 +73,8 @@ async def test_stdio_real_tool_call_and_error_path():
 
 @pytest.mark.asyncio
 async def test_stdio_pull_model_reports_progress():
-    """Regression test for the report_progress() workaround (RESEARCH.md
-    section 3): pulling an already-present model still streams a real
+    """Regression test for the report_progress() workaround in progress.py:
+    pulling an already-present model still streams a real
     progress sequence from Ollama, so this asserts we actually receive
     at least one well-formed notification, not just that the call succeeds.
     """

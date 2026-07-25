@@ -3,7 +3,6 @@
 Long inputs are split into chunks (chunking.py) and summarized map-reduce
 style: each chunk is summarized independently (progress reported via
 progress.py), then the chunk summaries are combined into one final summary.
-See PLAN.md section 3.6 / RESEARCH.md section 4.
 """
 
 from __future__ import annotations

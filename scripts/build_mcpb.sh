@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Build a .mcpb bundle for local-llm-mcp.
 #
-# EXPERIMENTAL / secondary distribution path — see RESEARCH.md section 11 and
-# PLAN.md section 8. The uv-type MCPB runtime is still labeled experimental
+# EXPERIMENTAL / secondary distribution path.
+# The uv-type MCPB runtime is still labeled experimental
 # upstream (known issues: Windows first-run venv-build race condition,
 # user_config/env not always reaching the server). This targets running
 # local-llm-mcp on NATIVE WINDOWS against the native Windows Ollama install —

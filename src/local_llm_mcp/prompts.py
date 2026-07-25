@@ -1,7 +1,7 @@
 """Reusable MCP prompt templates.
 
 These wrap raw user text into a task-specific instruction — the kind of
-boilerplate a user would otherwise retype every time. See PLAN.md section 4.
+boilerplate a user would otherwise retype every time.
 """
 
 from __future__ import annotations

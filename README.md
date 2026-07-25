@@ -332,7 +332,7 @@ WSL2 NAT 模式(預設)已內建 Windows → WSL2 的 localhost forwarding,不�
 
 ### Antigravity CLI(WSL 內)—— 取代已停役的 Gemini CLI
 
-> **⚠️ 生態變動**:Google 已於 **2026-06-18 對個人用戶停用 Gemini CLI**(僅 Gemini Code Assist 企業版存續),接替者是閉源 Go 重寫的 **Antigravity CLI**。
+> **生態變動**:Google 已於 **2026-06-18 對個人用戶停用 Gemini CLI**(僅 Gemini Code Assist 企業版存續),接替者是閉源 Go 重寫的 **Antigravity CLI**。
 >
 > 本專案在停用前(2026-07-15)完成過 Gemini CLI 的連線層驗證,兩個設定要點留作紀錄:Streamable HTTP 要用 `httpUrl`(不是 `url`)、server 名稱不能有底線。真實工具呼叫的驗證改在 Antigravity CLI 上完成。
 
@@ -369,12 +369,12 @@ MCP 設定檔位置:`~/.gemini/config/mcp_config.json`(Antigravity CLI 與 Antig
 
 | Client | 執行環境 | Transport | 連線驗證 | 真實工具呼叫 | Resources / Prompts | 備註 |
 |---|---|---|---|---|---|---|
-| Claude Desktop | Windows(config 指向 WSL) | stdio,經 `wsl.exe` | Node.js `spawn` 模擬完整 `initialize` 交握 | ✅ 2026-07-17 | 支援(SDK 層級) | custom connector 是雲端 brokered,只能走 stdio。曾因第一個訊息的 BOM 卡在 handshake,已證實 BOM 來自 PowerShell 而非 `wsl.exe` |
-| Claude Code(Windows) | Windows(既有已登入 CLI) | HTTP + API Key | `claude mcp list` Connected | ✅ 正確生成模型表格 | 未測 | 端到端證明 HTTP + API Key 可用 |
-| Claude Code(WSL) | WSL | stdio 與 HTTP + Key 皆測 | 兩者皆 Connected(各 7 tools) | ✅ 2026-07-17 | 未測 | 同環境內 stdio 是純 Linux pipe,沒有跨界問題 |
-| LM Studio | Windows | HTTP + API Key | Integrations 面板已連線 | ✅ 2026-07-15 初測、07-17 重測,含官方確認框 | 僅 Tools | NAT localhost forwarding 免改 `.wslconfig`;小模型會抄對話歷史,驗證需開新對話 |
+| Claude Desktop | Windows(config 指向 WSL) | stdio,經 `wsl.exe` | Node.js `spawn` 模擬完整 `initialize` 交握 | 已驗證 2026-07-17 | 支援(SDK 層級) | custom connector 是雲端 brokered,只能走 stdio。曾因第一個訊息的 BOM 卡在 handshake,已證實 BOM 來自 PowerShell 而非 `wsl.exe` |
+| Claude Code(Windows) | Windows(既有已登入 CLI) | HTTP + API Key | `claude mcp list` Connected | 已驗證，正確生成模型表格 | 未測 | 端到端證明 HTTP + API Key 可用 |
+| Claude Code(WSL) | WSL | stdio 與 HTTP + Key 皆測 | 兩者皆 Connected(各 7 tools) | 已驗證 2026-07-17 | 未測 | 同環境內 stdio 是純 Linux pipe,沒有跨界問題 |
+| LM Studio | Windows | HTTP + API Key | Integrations 面板已連線 | 已驗證 2026-07-15 初測、07-17 重測,含官方確認框 | 僅 Tools | NAT localhost forwarding 免改 `.wslconfig`;小模型會抄對話歷史,驗證需開新對話 |
 | Gemini CLI(已停役) | WSL | stdio 與 HTTP + Key(`httpUrl`)皆測 | 2026-07-15 兩者皆 Connected | 無法完成:Google 於 2026-06-18 停服 | — | `httpUrl`(非 `url`)與連字號命名皆確認正確;由 Antigravity CLI 接替 |
-| **Antigravity CLI** | WSL | stdio 與 HTTP + Key(`serverUrl`)皆設 | `/mcp` 兩者皆 ✓(各 7 tools) | ✅ 2026-07-17 v1.1.3,經 **HTTP + API Key** | 未測 | 設定檔 `~/.gemini/config/mcp_config.json`;HTTP 欄位改名 `serverUrl`;不支援環境變數展開 |
+| **Antigravity CLI** | WSL | stdio 與 HTTP + Key(`serverUrl`)皆設 | `/mcp` 兩者皆連線(各 7 tools) | 已驗證 2026-07-17 v1.1.3,經 **HTTP + API Key** | 未測 | 設定檔 `~/.gemini/config/mcp_config.json`;HTTP 欄位改名 `serverUrl`;不支援環境變數展開 |
 | Felo(選配) | 雲端 | SSE 或 Streamable HTTP | 2026-07-15 Pro 帳號確認支援自訂 MCP server | 未做(需先以 tunnel 曝露) | 未測 | 端到端串接尚未實測 |
 
 Claude Desktop、Claude Code(WSL)、LM Studio、Antigravity CLI 的截圖在下方 Client 安裝教學各小節;Claude Code 的 Windows 端只有文字紀錄,沒有截圖。

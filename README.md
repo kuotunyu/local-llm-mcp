@@ -7,7 +7,7 @@
 [![CI](https://github.com/<GITHUB_USER>/local-llm-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/<GITHUB_USER>/local-llm-mcp/actions/workflows/ci.yml)
 -->
 
-**一個生產等級的 MCP Server:讓 Claude Desktop、Claude Code、LM Studio、Gemini CLI 等任何 MCP client,把摘要、翻譯、資訊抽取這類敏感任務委派給本機 Ollama 上的開源模型執行 —— 文件內容全程留在本機,不經過雲端 LLM。**
+**一個生產等級的 MCP Server:讓 Claude Desktop、Claude Code、LM Studio、Antigravity CLI 等任何 MCP client,把摘要、翻譯、資訊抽取這類敏感任務委派給本機 Ollama 上的開源模型執行 —— 文件內容全程留在本機,不經過雲端 LLM。**
 
 完整實作 MCP 的三大 primitive(Tools / Resources / Prompts)、雙 transport(stdio / Streamable HTTP)、官方機制的 API Key 驗證,並實測橫跨四個真實 MCP client。過程中挖出並修正了兩個此前無人記錄的問題 —— 詳見下方「核心賣點」。
 
@@ -42,14 +42,14 @@ flowchart LR
     CD["Claude Desktop<br/>(Windows)"] -->|"stdio 經 wsl.exe"| Server
     CC["Claude Code<br/>(Windows 端或 WSL 內)"] -->|"stdio 或 Streamable HTTP + API Key"| Server
     LMS["LM Studio<br/>(Windows)"] -->|"Streamable HTTP + API Key"| Server
-    GC["Gemini CLI<br/>(WSL 內)"] -->|"stdio 或 Streamable HTTP + API Key<br/>(httpUrl)"| Server
+    AG["Antigravity CLI<br/>(WSL 內)"] -->|"stdio 或 Streamable HTTP + API Key<br/>(serverUrl)"| Server
     Server -.->|"web_search(選配)<br/>唯一離開本機的路徑"| Felo["Felo Chat API<br/>(雲端)"]
 ```
 
 Server 與 Ollama 都跑在 WSL2 內;四個 client 分別以自己最合適的方式連進來,**兩種 transport 都要做,不是因為每個 client 都要兩種都測,而是因為不同 client 需要不同 transport**:
 
 - **Claude Desktop** 的 custom connector 連線從 Anthropic 雲端發起,不是本機 —— Streamable HTTP 對它沒用,**只能走 stdio**(經 `wsl.exe`)
-- **Claude Code / LM Studio / Gemini CLI** 都是本機直連的 client,原生支援 Streamable HTTP + 自訂 header,用來示範 API Key 驗證的 HTTP 路徑
+- **Claude Code / LM Studio / Antigravity CLI** 都是本機直連的 client,原生支援 Streamable HTTP + 自訂 header,用來示範 API Key 驗證的 HTTP 路徑
 - LM Studio 在 Windows 原生執行,靠 WSL2 NAT 模式預設開啟的 localhost forwarding 連到 WSL 內的 server,不需要修改 `.wslconfig`
 
 ---

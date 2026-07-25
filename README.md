@@ -26,7 +26,6 @@
 - [Client 安裝教學](#client-安裝教學)
 - [相容性矩陣](#相容性矩陣)
 - [延遲量測摘要](#延遲量測摘要)
-- [Demo](#demo)
 - [授權](#授權)
 
 ---
@@ -167,11 +166,13 @@ ollama pull cwchang/llama3-taide-lx-8b-chat-alpha1
 ### 2. 安裝 local-llm-mcp
 
 ```bash
-git clone <this-repo>
+git clone https://github.com/kuotunyu/local-llm-mcp.git
 cd local-llm-mcp
 uv sync
 cp .env.example .env   # 依需求編輯,詳見下方環境變數表
 ```
+
+不用 uv 的話:`python -m venv .venv && .venv/bin/pip install -r requirements.txt`。
 
 啟動(stdio,預設):
 
@@ -185,11 +186,13 @@ uv run local-llm-mcp
 uv run local-llm-mcp --transport streamable-http
 ```
 
-專案發布到 GitHub 後,也可以不 clone、直接一行啟動:
+也可以不 clone、直接一行啟動:
 
 ```bash
 uvx --from git+https://github.com/kuotunyu/local-llm-mcp local-llm-mcp
 ```
+
+> 附帶的 `manifest.json` 與 `scripts/build_mcpb.sh` 是 MCPB(Claude Desktop 一鍵安裝包)的**實驗性**打包路徑,目標是原生 Windows + 原生 Ollama 的組合。本專案實際使用與驗證的是上面的 WSL 部署,MCPB 那條路沒有被完整驗證。
 
 ### 環境變數
 
@@ -289,6 +292,8 @@ claude mcp list
 claude -p "列出本機有哪些 Ollama 模型" --allowedTools mcp__local-llm-mcp__list_local_models
 ```
 
+要讓設定跟著 repo 走(而不是存在使用者層級),可以參考 [`.mcp.json.example`](./.mcp.json.example):複製成 `.mcp.json`,API Key 用 `${LOCAL_LLM_MCP_API_KEY}` 從環境變數讀,不寫死在檔案裡。
+
 實測截圖(2026-07-17,WSL 內):
 
 ![Claude Code /mcp 顯示 stdio 與 HTTP 兩個 server 各 7 tools connected](docs/screenshots/claude-code/mcp-list.png)
@@ -372,7 +377,7 @@ MCP 設定檔位置:`~/.gemini/config/mcp_config.json`(Antigravity CLI 與 Antig
 | **Antigravity CLI** | WSL | stdio 與 HTTP + Key(`serverUrl`)皆設 | `/mcp` 兩者皆 ✓(各 7 tools) | ✅ 2026-07-17 v1.1.3,經 **HTTP + API Key** | 未測 | 設定檔 `~/.gemini/config/mcp_config.json`;HTTP 欄位改名 `serverUrl`;不支援環境變數展開 |
 | Felo(選配) | 雲端 | SSE 或 Streamable HTTP | 2026-07-15 Pro 帳號確認支援自訂 MCP server | 未做(需先以 tunnel 曝露) | 未測 | 端到端串接尚未實測 |
 
-每一列的 ✅ 都對應下方 Client 安裝教學裡的截圖。
+Claude Desktop、Claude Code(WSL)、LM Studio、Antigravity CLI 的截圖在下方 Client 安裝教學各小節;Claude Code 的 Windows 端只有文字紀錄,沒有截圖。
 
 ---
 
@@ -392,12 +397,6 @@ MCP 設定檔位置:`~/.gemini/config/mcp_config.json`(Antigravity CLI 與 Antig
 | `extract_json` | 複雜 schema(5 欄位,含 enum) | 0.54s | 0.35s |
 
 **觀察**:短輸入時兩個模型的延遲接近,固定開銷(HTTP round-trip、tokenize)蓋過模型大小差異;輸入變長、任務變複雜後,小模型的速度優勢才明顯浮現。
-
----
-
-## Demo
-
-`docs/demo.gif`(demo GIF 待補)
 
 ---
 

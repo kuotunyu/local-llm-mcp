@@ -3,9 +3,7 @@
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 ![MCP SDK](https://img.shields.io/badge/mcp-1.x-8A2BE2)
-<!-- TODO(publish): 上 GitHub 後把下面這行換成真實 repo 路徑並取消註解
-[![CI](https://github.com/<GITHUB_USER>/local-llm-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/<GITHUB_USER>/local-llm-mcp/actions/workflows/ci.yml)
--->
+[![CI](https://github.com/kuotunyu/local-llm-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/kuotunyu/local-llm-mcp/actions/workflows/ci.yml)
 
 **一個生產等級的 MCP Server:讓 Claude Desktop、Claude Code、LM Studio、Antigravity CLI 等任何 MCP client,把摘要、翻譯、資訊抽取這類敏感任務委派給本機 Ollama 上的開源模型執行 —— 文件內容全程留在本機,不經過雲端 LLM。**
 
@@ -162,7 +160,7 @@ uv run local-llm-mcp --transport streamable-http
 專案發布到 GitHub 後,也可以不 clone、直接一行啟動:
 
 ```bash
-uvx --from git+https://github.com/<owner>/local-llm-mcp local-llm-mcp
+uvx --from git+https://github.com/kuotunyu/local-llm-mcp local-llm-mcp
 ```
 
 ### 環境變數

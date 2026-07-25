@@ -20,7 +20,8 @@ jobs:
       - name: Install dependencies
         run: uv sync
       # e2e tests self-skip when Ollama is unreachable (skipif guard probes
-      # localhost:11434), so running the full suite is safe in CI: 29 unit
-      # tests run, 6 e2e tests skip.
+      # localhost:11434), so running the full suite is safe in CI: the unit
+      # tests run and the e2e tests skip. Deliberately no counts here - they
+      # go stale every time a test is added.
       - name: Run tests
         run: uv run pytest -q

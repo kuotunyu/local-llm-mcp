@@ -181,6 +181,15 @@ uvx --from git+https://github.com/<owner>/local-llm-mcp local-llm-mcp
 | `LOCAL_LLM_MCP_TRANSPORT` | `stdio` | 預設 transport,可被 CLI 的 `--transport` 覆寫 |
 | `LOCAL_LLM_MCP_HTTP_HOST` / `_PORT` / `_PATH` | `127.0.0.1` / `8000` / `/mcp` | Streamable HTTP 綁定位址、埠、路徑 |
 | `LOCAL_LLM_MCP_API_KEY` | (未設定) | Streamable HTTP 的 Bearer token,**必填**才能啟動 HTTP transport;可用 `python -c "import secrets; print(secrets.token_urlsafe(32))"` 產生 |
+| `LOCAL_LLM_MCP_EXTRA_ALLOWED_HOSTS` | (未設定) | 逗號分隔的額外可信 Host header / Origin,只在把 server 放到 tunnel 後方時才需要;**只放寬 Host header 檢查,不改變綁定位址**(仍是 `127.0.0.1`) |
+
+**最後那個變數為什麼存在,以及使用前該知道的事**:綁定 `127.0.0.1` 會讓 SDK 自動開啟 DNS-rebinding 保護,任何非 localhost 的 Host header 一律回 `421 Invalid Host header`。把 server 放在 tunnel(例如 cloudflared)後方時,即使 tunnel 實際連的是 localhost,轉發進來的 Host header 仍然是 tunnel 的網域,因此會被擋掉——這個變數就是為這種情況準備的,而且它只加寬 Host header 的白名單,綁定位址不變。
+
+但本專案的預設與唯一受支援組態仍然是「只綁 `127.0.0.1`、不對外曝露」。真的要曝露之前,至少要先知道三件事:
+
+1. `LOCAL_LLM_MCP_API_KEY` 是唯一的驗證機制,沒有 rate limit、沒有 IP 白名單。key 一旦洩漏,等於這台機器上的本地模型任人使用。
+2. cloudflared quick tunnel 官方文件明講**不支援 SSE**,而 Streamable HTTP 的通知流(包含 `pull_model` 的進度通知)依賴 SSE —— 走 quick tunnel 會讓進度通知失效。
+3. `trycloudflare.com` 這個網域常被資安工具標記(SigmaHQ 有對應偵測規則),企業網路或 EDR 環境可能直接封鎖或告警。
 
 ---
 

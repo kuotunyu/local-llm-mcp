@@ -4,12 +4,13 @@ Two transports, selected by --transport or LOCAL_LLM_MCP_TRANSPORT (CLI flag
 wins): `stdio` (default, no auth — process-level trust, used by Claude
 Desktop/Code) and `streamable-http` (API-key auth via auth.py, used by
 clients that connect directly rather than through a cloud-brokered
-connector — see RESEARCH.md sections 5/6/7/8 for why Claude Desktop can't
-use the HTTP transport at all).
+connector). Claude Desktop cannot use the HTTP transport at all: its custom
+connectors are brokered through Anthropic's cloud, so the URL must be publicly
+reachable — a localhost-bound server is unreachable by definition.
 
 IMPORTANT: never print to stdout. The stdio transport uses stdout for JSON-RPC
 framing — any stray print() corrupts the protocol stream. All logging below
-goes to stderr (see RESEARCH.md section 1 / official MCP debugging docs).
+goes to stderr, as the official MCP debugging docs require.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ import logging
 import sys
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from . import prompts, resources, settings
 from .auth import StaticKeyVerifier, build_auth_settings
@@ -71,6 +73,14 @@ def build_http_server() -> FastMCP:
         )
 
     resource_server_url = f"http://{settings.HTTP_HOST}:{settings.HTTP_PORT}{settings.HTTP_PATH}"
+    transport_security = None
+    if settings.EXTRA_ALLOWED_HOSTS:
+        # Widen the Host-header allow-list (e.g. a cloudflared *.trycloudflare.com
+        # hostname) without touching the bind address — see settings.py.
+        transport_security = TransportSecuritySettings(
+            allowed_hosts=[f"{settings.HTTP_HOST}:{settings.HTTP_PORT}", "localhost", *settings.EXTRA_ALLOWED_HOSTS],
+            allowed_origins=[f"https://{h}" for h in settings.EXTRA_ALLOWED_HOSTS],
+        )
     http_mcp = FastMCP(
         "local-llm-mcp",
         host=settings.HTTP_HOST,
@@ -78,10 +88,10 @@ def build_http_server() -> FastMCP:
         streamable_http_path=settings.HTTP_PATH,
         token_verifier=StaticKeyVerifier(settings.API_KEY),
         auth=build_auth_settings(resource_server_url),
+        transport_security=transport_security,
         # Deliberately NOT setting stateless_http/json_response: the SDK default
         # (stateful + SSE) is the only mode where pull_model's progress
-        # notifications have any chance of being delivered — see RESEARCH.md
-        # section 3.
+        # notifications have any chance of being delivered — see progress.py.
     )
     _register_all(http_mcp)
     return http_mcp

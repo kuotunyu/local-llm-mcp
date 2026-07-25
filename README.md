@@ -5,9 +5,14 @@
 ![MCP SDK](https://img.shields.io/badge/mcp-1.x-8A2BE2)
 [![CI](https://github.com/kuotunyu/local-llm-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/kuotunyu/local-llm-mcp/actions/workflows/ci.yml)
 
-**一個生產等級的 MCP Server:讓 Claude Desktop、Claude Code、LM Studio、Antigravity CLI 等任何 MCP client,把摘要、翻譯、資訊抽取這類敏感任務委派給本機 Ollama 上的開源模型執行 —— 文件內容全程留在本機,不經過雲端 LLM。**
+**把摘要、翻譯、資訊抽取這類敏感任務,委派給本機 Ollama 上的開源模型 —— 文件內容不離開這台機器。**
 
-完整實作 MCP 的三大 primitive(Tools / Resources / Prompts)、雙 transport(stdio / Streamable HTTP)、官方機制的 API Key 驗證,並實測橫跨四個真實 MCP client。過程中挖出並修正了兩個此前無人記錄的問題 —— 詳見下方「核心賣點」。
+任何 MCP client 都能接,已實測四個:Claude Desktop、Claude Code、LM Studio、Antigravity CLI。
+
+- MCP 三大 primitive 全做:7 個 tools、1 個 resource、2 個 prompts
+- 雙 transport:stdio 與 Streamable HTTP,HTTP 用官方 `TokenVerifier` 做 API Key 驗證
+- 每個 client 都有真實工具呼叫的截圖,不是相容性宣稱
+- 兩個靠實測挖出來的深層問題,其中一個的歸因後來被自己推翻
 
 ---
 
@@ -44,22 +49,44 @@ flowchart LR
     Server -.->|"web_search(選配)<br/>唯一離開本機的路徑"| Felo["Felo Chat API<br/>(雲端)"]
 ```
 
-Server 與 Ollama 都跑在 WSL2 內;四個 client 分別以自己最合適的方式連進來,**兩種 transport 都要做,不是因為每個 client 都要兩種都測,而是因為不同 client 需要不同 transport**:
+Server 與 Ollama 都跑在 WSL2 內。**兩種 transport 都做的原因是不同 client 只能走不同 transport**,不是為了湊數:
 
-- **Claude Desktop** 的 custom connector 連線從 Anthropic 雲端發起,不是本機 —— Streamable HTTP 對它沒用,**只能走 stdio**(經 `wsl.exe`)
-- **Claude Code / LM Studio / Antigravity CLI** 都是本機直連的 client,原生支援 Streamable HTTP + 自訂 header,用來示範 API Key 驗證的 HTTP 路徑
-- LM Studio 在 Windows 原生執行,靠 WSL2 NAT 模式預設開啟的 localhost forwarding 連到 WSL 內的 server,不需要修改 `.wslconfig`
+- **Claude Desktop** 的 custom connector 從 Anthropic 雲端發起連線 —— Streamable HTTP 對它沒用,只能走 stdio(經 `wsl.exe`)
+- **Claude Code / LM Studio / Antigravity CLI** 都是本機直連,支援 Streamable HTTP + 自訂 header,用來示範 API Key 驗證
+- LM Studio 跑在 Windows 原生,靠 WSL2 NAT 預設開啟的 localhost forwarding 連進 WSL,不必改 `.wslconfig`
 
 ---
 
 ## 核心賣點
 
-1. **完整的 MCP 三大 primitive + 雙 transport + 官方驗證機制** —— 7 個 tools(6 個純本機 + 1 個選配的雲端搜尋,構成混合隱私分流)、1 個 resource、2 個 prompt,stdio 與 Streamable HTTP 都實作,HTTP 驗證用官方 `TokenVerifier` + `AuthSettings` 機制(而非自製 middleware),不是最小可行的 tool-only demo。
-2. **實測橫跨四個真實 MCP client**,涵蓋 Windows 原生程序呼叫 WSL2 內服務的跨邊界網路與程序模型細節(WSL2 NAT localhost forwarding、`wsl.exe` 程序模型、環境變數不會跨界傳遞等),不是紙上談兵的相容性宣稱。
-3. **兩個靠實測挖出來的深層問題,其中一個的歸因後來被自己推翻**:
-   - 官方 MCP Python SDK v1.x 的 `Context.report_progress()` 沒有設定 `related_request_id`,導致 Streamable HTTP 下進度通知被路由到錯誤的 stream(讀 SDK 原始碼定位,並對照同一個檔案裡確實有帶上這個欄位的 `Context.log()`,證明是遺漏而非設計如此)。實作了一個 workaround helper,並用官方 client SDK 的 `progress_callback` 實測驗證 —— stdio 與 Streamable HTTP 下都收到 4 筆與 Ollama 回報位元組數精確對應的進度通知。回頭複查上游(2026-07-25)發現維護者已於 2026-06-26 以 PR #2994 把修正補進 `v1.x` 分支,但那次 merge 比 1.28.1 上架 PyPI 晚約 46 分鐘、剛好錯過,至今沒有任何已發行的 1.x 含這個修正(最新仍是 1.28.1),因此在本專案 pin 的 `>=1.28.1,<2.0` 範圍內 workaround 仍然必要,待下一個 1.x release 後即可移除。
-   - stdio 啟動時,pipe 生命週期中**第一次寫入**的開頭會出現 3 bytes 的 UTF-8 BOM,而 MCP 的第一個訊息永遠是 `initialize` request,這個 BOM 會讓 JSON parser 直接失敗。這是用 Node.js `child_process.spawn` 逐 byte 比對才量到的(送出 11 bytes、收到 14 bytes),當時歸因為 `wsl.exe` 的缺陷。**2026-07-25 為了回報上游而重新設計對照實驗,推翻了這個歸因** —— BOM 來自 Windows PowerShell 5.1 在 code page 65001 下的文字模式管線(關鍵對照組:路徑裡完全沒有 `wsl.exe` 時同樣出現 BOM,改由 `cmd.exe` 處理管線則乾淨),`wsl.exe` 本身逐 byte 乾淨,原本的 `sed` workaround 也證實不必要。觸發條件收斂到 `chcp 65001` 有、`chcp 437` 沒有;機制是 PS 5.1 依 console code page 建立的文字模式 pipeline writer 會寫出該編碼的 preamble,而 `StreamWriter` 的 preamble 只寫一次——正好解釋「只有第一次寫入」。Claude Desktop 當初連不上的真正原因仍未定案。
-4. **對「本地模型處理不可信文件」的 prompt injection 風險有具體分析與緩解設計**:輸出一律視為資料而非指令(host 端不應自動執行摘要/翻譯結果中的指令)、輸出長度上限、不做工具鏈自動串接;也記錄了若日後要把 Streamable HTTP 公開曝露(如透過 cloudflared tunnel)所需的縱深防禦考量。
+**完整度,不是最小可行 demo**
+
+7 個 tools(6 個純本機 + 1 個選配的雲端搜尋,構成混合隱私分流)、1 個 resource、2 個 prompts。stdio 與 Streamable HTTP 都實作,HTTP 驗證走官方 `TokenVerifier` + `AuthSettings`,不是自製 middleware。
+
+**四個真實 client 實測**
+
+涵蓋 Windows 原生程序呼叫 WSL2 內服務的細節:NAT localhost forwarding、`wsl.exe` 程序模型、環境變數不會跨界傳遞。
+**SDK 的 progress 路由缺陷**
+
+官方 MCP Python SDK v1.x 的 `Context.report_progress()` 沒帶 `related_request_id`,Streamable HTTP 下進度通知會被路由到錯的 stream。判斷依據是同一個檔案裡的 `Context.log()` **有**帶 —— 是遺漏,不是設計。
+
+本專案用一個 helper 繞過,並以官方 client SDK 的 `progress_callback` 實測:stdio 與 HTTP 下都收到 4 筆與 Ollama 回報位元組數精確對應的通知。
+
+上游其實已經修了,但還沒發行:PR #2994 於 2026-06-26 進 `v1.x` 分支,那次 merge 比 1.28.1 上架 PyPI 晚約 46 分鐘、剛好錯過。至今沒有任何已發行的 1.x 含這個修正,所以在本專案 pin 的 `>=1.28.1,<2.0` 範圍內 workaround 仍然必要。
+
+**一個被自己推翻的歸因**
+
+stdio 第一次寫入的開頭會多出 3 bytes 的 UTF-8 BOM,而 MCP 的第一個訊息永遠是 `initialize`,BOM 讓 JSON parser 直接失敗。用 Node.js `child_process.spawn` 逐 byte 比對量到:送出 11 bytes、收到 14 bytes。當時歸因為 `wsl.exe` 的缺陷。
+
+2026-07-25 為了回報上游而重做對照實驗,推翻了這個結論:**BOM 來自 Windows PowerShell 5.1 在 code page 65001 下的文字模式管線,與 `wsl.exe` 無關。**
+
+- 關鍵對照組:把 `wsl.exe` 從路徑裡完全移除 —— BOM 照樣出現;同一條管線改由 `cmd.exe` 處理則乾淨
+- 機制:`StreamWriter` 的 preamble 一輩子只寫一次,正好解釋「只有第一次寫入」這個特徵
+- 結果:原本的 `sed` workaround 證實不必要;Claude Desktop 當初連不上的真正原因仍未定案
+
+**prompt injection 的緩解設計**
+
+輸出一律視為資料而非指令(host 端不該自動執行摘要結果裡的指令)、輸入長度上限、不做工具鏈自動串接。
 
 ---
 
@@ -70,18 +97,18 @@ Server 與 Ollama 都跑在 WSL2 內;四個 client 分別以自己最合適的�
 | 工具 | 說明 |
 |---|---|
 | `ask_local` | 自由問答,直接把 prompt 丟給本機模型 |
-| `summarize_private` | 摘要私密文字;超過安全字數門檻會自動依段落/句子邊界切成多個 chunk,map-reduce 方式逐段摘要後再合併,並回報處理進度 |
+| `summarize_private` | 摘要私密文字。超過門檻會依段落/句子邊界切 chunk,map-reduce 逐段摘要後合併,並回報進度 |
 | `translate_private` | 中英互譯(`target_lang: "zh-TW" \| "en"`),來源語言由模型自動判斷 |
-| `extract_json` | 依呼叫端在執行期提供的任意 JSON Schema 抽取結構化資料,溫度固定為 0(用 Ollama 的 `format=` 結構化輸出,而非 SDK 靜態 `outputSchema` 推導) |
-| `list_local_models` | 列出本機所有 Ollama 模型(`parameter_size`、`quantization_level`、`family`、`context_length`) |
-| `pull_model` | 下載 Ollama 模型,透過 MCP progress 通知回報下載進度 |
-| `web_search`(選配) | **唯一刻意離開本機的工具**:透過 Felo Chat API 做即時網路搜尋,回傳附引用來源的答案。工具描述明確標注隱私邊界,讓呼叫端 LLM 能正確分流——敏感內容走 `*_private` 工具(全程本機),公開知識查詢走 `web_search`(雲端)。未設定 `FELO_API_KEY` 時回傳結構化錯誤,其餘工具不受影響 |
+| `extract_json` | 依呼叫端在執行期給的任意 JSON Schema 抽取結構化資料,溫度固定 0(走 Ollama 的 `format=`,不是 SDK 的靜態 `outputSchema`) |
+| `list_local_models` | 列出本機 Ollama 模型(`parameter_size`、`quantization_level`、`family`、`context_length`) |
+| `pull_model` | 下載 Ollama 模型,以 MCP progress 通知回報進度 |
+| `web_search`(選配) | **唯一刻意離開本機的工具**:經 Felo Chat API 做即時搜尋,回傳附引用的答案。工具描述明確標注隱私邊界,讓呼叫端 LLM 能分流 —— 敏感內容走 `*_private`,公開知識走 `web_search`。未設 `FELO_API_KEY` 時回傳結構化錯誤,不影響其餘工具 |
 
 ### Resource
 
 | Resource | 說明 |
 |---|---|
-| `models://local` | 本機模型清單的快照 —— 與 `list_local_models` 共用同一份底層邏輯,但走「GET 目前狀態」的 Resource 語意,而非「執行動作」的 Tool 語意 |
+| `models://local` | 本機模型清單的快照。與 `list_local_models` 共用底層邏輯,但走「GET 目前狀態」的 Resource 語意,而非「執行動作」的 Tool 語意 |
 
 ### Prompts
 
@@ -181,13 +208,9 @@ uvx --from git+https://github.com/kuotunyu/local-llm-mcp local-llm-mcp
 | `LOCAL_LLM_MCP_API_KEY` | (未設定) | Streamable HTTP 的 Bearer token,**必填**才能啟動 HTTP transport;可用 `python -c "import secrets; print(secrets.token_urlsafe(32))"` 產生 |
 | `LOCAL_LLM_MCP_EXTRA_ALLOWED_HOSTS` | (未設定) | 逗號分隔的額外可信 Host header / Origin,只在把 server 放到 tunnel 後方時才需要;**只放寬 Host header 檢查,不改變綁定位址**(仍是 `127.0.0.1`) |
 
-**最後那個變數為什麼存在,以及使用前該知道的事**:綁定 `127.0.0.1` 會讓 SDK 自動開啟 DNS-rebinding 保護,任何非 localhost 的 Host header 一律回 `421 Invalid Host header`。把 server 放在 tunnel(例如 cloudflared)後方時,即使 tunnel 實際連的是 localhost,轉發進來的 Host header 仍然是 tunnel 的網域,因此會被擋掉——這個變數就是為這種情況準備的,而且它只加寬 Host header 的白名單,綁定位址不變。
+最後那個變數的用途:綁定 `127.0.0.1` 會讓 SDK 自動開啟 DNS-rebinding 保護,任何非 localhost 的 Host header 一律回 `421 Invalid Host header`。放在 tunnel 後方時,轉發進來的 Host 是 tunnel 的網域,因此會被擋 —— 這個變數就是為此準備的,而且它只加寬 Host header 白名單,綁定位址不變。
 
-但本專案的預設與唯一受支援組態仍然是「只綁 `127.0.0.1`、不對外曝露」。真的要曝露之前,至少要先知道三件事:
-
-1. `LOCAL_LLM_MCP_API_KEY` 是唯一的驗證機制,沒有 rate limit、沒有 IP 白名單。key 一旦洩漏,等於這台機器上的本地模型任人使用。
-2. cloudflared quick tunnel 官方文件明講**不支援 SSE**,而 Streamable HTTP 的通知流(包含 `pull_model` 的進度通知)依賴 SSE —— 走 quick tunnel 會讓進度通知失效。
-3. `trycloudflare.com` 這個網域常被資安工具標記(SigmaHQ 有對應偵測規則),企業網路或 EDR 環境可能直接封鎖或告警。
+> **但預設與唯一受支援的組態仍然是「只綁 `127.0.0.1`、不對外曝露」。** 要曝露之前先知道三件事:API Key 是唯一的驗證機制,沒有 rate limit 也沒有 IP 白名單,洩漏等於本地模型任人使用;cloudflared quick tunnel 官方明講不支援 SSE,`pull_model` 的進度通知會失效;`trycloudflare.com` 常被資安工具標記(SigmaHQ 有偵測規則),企業網路或 EDR 可能直接封鎖。
 
 ---
 
@@ -214,20 +237,23 @@ uvx --from git+https://github.com/kuotunyu/local-llm-mcp local-llm-mcp
 }
 ```
 
-> **關於本專案早期曾使用的 `sed` 過濾**:先前的設定在啟動指令外包了一層 `bash -c "sed -u '1s/^\xef\xbb\xbf//' | ..."`,用來剝除第一個訊息開頭出現的 UTF-8 BOM。後續的對照實驗證實那個 BOM 來自 Windows PowerShell 5.1 在 code page 65001 下的管線,**不是 `wsl.exe`**,因此經 Claude Desktop(Node `spawn`)啟動時並不需要這一層。若你的啟動路徑中確實有 PowerShell 介入而遇到同樣的解析失敗,再改用下面這個形式:
+兩個 WSL 特有的注意事項:
+
+- 設定裡的 `env` 區塊只作用在 Windows 端的 `wsl.exe` process,**不會**傳進 WSL 內的 server —— 要帶環境變數請用 `bash -c "VAR=xxx exec ..."`
+- `--` 之後的路徑在某些情況下會被 WSL 端 shell 重新切開,專案路徑請避免空白字元
+
+> **早期版本曾包一層 `sed`**
+>
+> 先前的設定用 `bash -c "sed -u '1s/^\xef\xbb\xbf//' | ..."` 剝除第一個訊息開頭的 UTF-8 BOM。對照實驗證實那個 BOM 來自 PowerShell 而非 `wsl.exe`,所以經 Claude Desktop(Node `spawn`)啟動並不需要這一層。
+>
+> 若你的啟動路徑真的有 PowerShell 介入、遇到同樣的解析失敗,把 `args` 換成:
 >
 > ```jsonc
-> "args": [
->   "-d", "<你的 WSL 發行版名稱>",
->   "--",
->   "bash", "-c",
->   "sed -u '1s/^\\xef\\xbb\\xbf//' | /home/<user>/local-llm-mcp/.venv/bin/python3 -m local_llm_mcp.server"
-> ]
+> ["-d", "<發行版>", "--", "bash", "-c",
+>  "sed -u '1s/^\\xef\\xbb\\xbf//' | <venv python> -m local_llm_mcp.server"]
 > ```
 >
-> 這個形式有兩個容易踩到的坑:(1)**`sed` 一定要加 `-u`(unbuffered)**——輸出不是終端機時 `sed` 預設會 block-buffer,JSON 那一行會卡在 buffer 裡送不出去,造成請求逾時;(2)**BOM pattern 必須包在單引號裡**——`1s/^\xef\xbb\xbf//` 若沒有額外包一層引號,bash 在 unquoted context 下會把 `\x` 解讀成「跳脫沒有特殊意義的字元」而直接吃掉反斜線,pattern 就整個失效。
-
-另外,Claude Desktop 設定裡 `env` 區塊只作用在 Windows 端的 `wsl.exe` process,**不會**傳進 WSL 內的 server process;若要帶環境變數,改用 `bash -c "VAR=xxx exec ..."` 的內嵌寫法。專案路徑建議放在 WSL 的 ext4 檔案系統(`/home/...`)且避免空白字元,`--` 之後的路徑在某些情況下會被 WSL 端 shell 重新切開。
+> 這個形式有兩個坑:`sed` 一定要加 `-u`(否則 block-buffer 會把 JSON 卡在 buffer 裡),pattern 一定要包在單引號裡(否則 bash 會吃掉反斜線讓 pattern 失效)。
 
 實測截圖(2026-07-17):
 
@@ -237,7 +263,7 @@ uvx --from git+https://github.com/kuotunyu/local-llm-mcp local-llm-mcp
 
 ### Claude Code
 
-Claude Code 對 stdio 與 HTTP 都原生支援良好,且因為它本身、server、Ollama 可以同時跑在同一個 WSL2 發行版內,兩種 transport 都跟原生 Linux 上一樣運作,沒有額外的 WSL 網路轉換問題。
+Claude Code、server、Ollama 可以同時跑在同一個 WSL2 發行版內,所以兩種 transport 都跟原生 Linux 一樣運作,沒有跨界轉換問題。
 
 在 **WSL 內**同時加入 stdio 與 HTTP 兩個版本:
 
@@ -285,11 +311,10 @@ claude -p "列出本機有哪些 Ollama 模型" --allowedTools mcp__local-llm-mc
 }
 ```
 
-WSL2 NAT 模式(預設)下,Windows → WSL2 的 localhost forwarding 是內建開啟的,不需要修改 `.wslconfig` 或啟用 mirrored networking。啟用後在對話輸入區的扳手圖示可以看到「Integrations」面板列出 `mcp/local-llm-mcp`,呼叫工具時會跳出官方的確認對話框(Proceed / Deny / Deny with Reason)。
+WSL2 NAT 模式(預設)已內建 Windows → WSL2 的 localhost forwarding,不必改 `.wslconfig`,也不必啟用 mirrored networking。啟用後在輸入區的扳手圖示會看到「Integrations」面板列出 `mcp/local-llm-mcp`,呼叫工具時會跳出官方確認框。
 
-**已知限制**:LM Studio 目前只支援 MCP 的 Tools primitive,Integrations 面板不會顯示 Resources 或 Prompts。
-
-**實測時發現的使用陷阱**(2026-07-17,qwen3-0.6b):如果對話歷史裡已經有一次工具呼叫的結果,小模型對同樣的問題**可能直接從歷史抄答案而不再真的呼叫工具**(回覆裡不會出現工具標籤,且內容可能過時或不完整)。要驗證工具鏈是否真的可用,務必開一個乾淨的新對話再測。
+- **已知限制**:LM Studio 目前只支援 Tools,Integrations 面板不會顯示 Resources 或 Prompts
+- **使用陷阱**(2026-07-17,qwen3-0.6b):對話歷史裡若已有一次工具呼叫的結果,小模型可能直接抄歷史而不再真的呼叫工具 —— 驗證工具鏈務必開一個乾淨的新對話
 
 實測截圖(2026-07-17):
 
@@ -301,7 +326,9 @@ WSL2 NAT 模式(預設)下,Windows → WSL2 的 localhost forwarding 是內建�
 
 ### Antigravity CLI(WSL 內)—— 取代已停役的 Gemini CLI
 
-> **⚠️ 生態變動紀錄**:Google 已於 **2026-06-18 對個人用戶停用 Gemini CLI**(免費/AI Pro/Ultra 全數停服,僅 Gemini Code Assist 企業版存續),接替者是閉源 Go 重寫的 **Antigravity CLI**。本專案在停用前(2026-07-15)完成過 Gemini CLI 的連線層驗證(`gemini mcp list` 兩個 transport 皆 Connected —— 該健康檢查為純本地操作,不受停服影響),當時的兩個設定要點留作歷史紀錄:Streamable HTTP 要用 `httpUrl` 欄位(不是 `url`)、伺服器名稱不能包含底線。真實工具呼叫的驗證則改在 Antigravity CLI 上完成(見下)。
+> **⚠️ 生態變動**:Google 已於 **2026-06-18 對個人用戶停用 Gemini CLI**(僅 Gemini Code Assist 企業版存續),接替者是閉源 Go 重寫的 **Antigravity CLI**。
+>
+> 本專案在停用前(2026-07-15)完成過 Gemini CLI 的連線層驗證,兩個設定要點留作紀錄:Streamable HTTP 要用 `httpUrl`(不是 `url`)、server 名稱不能有底線。真實工具呼叫的驗證改在 Antigravity CLI 上完成。
 
 安裝:`curl -fsSL https://antigravity.google/cli/install.sh | bash`(裝到 `~/.local/bin/agy`)。
 
@@ -334,23 +361,23 @@ MCP 設定檔位置:`~/.gemini/config/mcp_config.json`(Antigravity CLI 與 Antig
 
 ## 相容性矩陣
 
-實測結果:
-
 | Client | 執行環境 | Transport | 連線驗證 | 真實工具呼叫 | Resources / Prompts | 備註 |
 |---|---|---|---|---|---|---|
-| Claude Desktop | Windows(config 指向 WSL) | stdio,經 `wsl.exe` | 已驗證(Node.js `spawn` 模擬完整 `initialize` 交握) | ✅ 已驗證(2026-07-17):Connectors 清單顯示 local-llm-mcp,真實呼叫 `list_local_models` 成功,見下方截圖 | 支援(SDK 層級) | 曾因第一個訊息開頭的 UTF-8 BOM 卡在 handshake,2026-07-25 對照實驗證實 BOM 來自 PowerShell 而非 `wsl.exe`;custom connector 為雲端 brokered,只能走 stdio |
-| Claude Code(Windows) | Windows(既有已登入 CLI) | Streamable HTTP + API Key | `claude mcp list` 顯示 Connected | 已驗證:真實呼叫 `list_local_models`,正確生成模型表格 | 未測 | 端到端證明 Streamable HTTP + API Key 可用 |
-| Claude Code(WSL) | WSL | stdio 與 HTTP+Key 皆測 | 兩者皆 Connected(各 7 tools) | ✅ 已驗證(2026-07-17):真實呼叫 `list_local_models` 成功,見下方截圖 | 未測 | 證實同環境內 stdio 沒有跨界問題(純 Linux pipe) |
-| LM Studio | Windows | Streamable HTTP + API Key | Integrations 面板顯示已連線 | ✅ 已驗證(2026-07-15 初測,2026-07-17 重測並截圖):真實呼叫 `list_local_models`,含官方 Proceed/Deny 確認框,見下方截圖 | 僅 Tools,無 Resources / Prompts | 符合官方已知限制;NAT 模式 localhost forwarding 免改 `.wslconfig`;注意小模型會從對話歷史抄答案,驗證需開新對話 |
-| Gemini CLI(已停役) | WSL | stdio 與 HTTP+Key(`httpUrl`)皆測 | `gemini mcp list` 兩者皆 Connected(2026-07-15,免登入) | 無法完成:Google 於 2026-06-18 對個人用戶停服 | — | 歷史紀錄:`httpUrl`(非 `url`)+ 連字號命名皆確認正確;由 Antigravity CLI 接替 |
-| **Antigravity CLI** | WSL | stdio 與 HTTP+Key(`serverUrl`)皆設 | `/mcp` 面板兩者皆 ✓(各 7 tools) | ✅ 已驗證(2026-07-17,v1.1.3):經 **Streamable HTTP + API Key** 真實呼叫 `list_local_models` 成功,見下方截圖 | 未測 | Gemini CLI 的接替者(閉源 Go 重寫);設定檔改為 `~/.gemini/config/mcp_config.json`,HTTP 欄位改名 `serverUrl`,不支援環境變數展開 |
-| Felo(選配) | 雲端 | SSE 或 Streamable HTTP(表單可選) | 已確認支援自訂 MCP server(2026-07-15 Pro 帳號實測:表單含服務名稱 / 連接模式 / URL / Header) | 未做(需先以 tunnel 曝露本機 server) | 未測 | 推翻「官方文件查無證據」的舊結論;端到端串接尚未實測 |
+| Claude Desktop | Windows(config 指向 WSL) | stdio,經 `wsl.exe` | Node.js `spawn` 模擬完整 `initialize` 交握 | ✅ 2026-07-17 | 支援(SDK 層級) | custom connector 是雲端 brokered,只能走 stdio。曾因第一個訊息的 BOM 卡在 handshake,已證實 BOM 來自 PowerShell 而非 `wsl.exe` |
+| Claude Code(Windows) | Windows(既有已登入 CLI) | HTTP + API Key | `claude mcp list` Connected | ✅ 正確生成模型表格 | 未測 | 端到端證明 HTTP + API Key 可用 |
+| Claude Code(WSL) | WSL | stdio 與 HTTP + Key 皆測 | 兩者皆 Connected(各 7 tools) | ✅ 2026-07-17 | 未測 | 同環境內 stdio 是純 Linux pipe,沒有跨界問題 |
+| LM Studio | Windows | HTTP + API Key | Integrations 面板已連線 | ✅ 2026-07-15 初測、07-17 重測,含官方確認框 | 僅 Tools | NAT localhost forwarding 免改 `.wslconfig`;小模型會抄對話歷史,驗證需開新對話 |
+| Gemini CLI(已停役) | WSL | stdio 與 HTTP + Key(`httpUrl`)皆測 | 2026-07-15 兩者皆 Connected | 無法完成:Google 於 2026-06-18 停服 | — | `httpUrl`(非 `url`)與連字號命名皆確認正確;由 Antigravity CLI 接替 |
+| **Antigravity CLI** | WSL | stdio 與 HTTP + Key(`serverUrl`)皆設 | `/mcp` 兩者皆 ✓(各 7 tools) | ✅ 2026-07-17 v1.1.3,經 **HTTP + API Key** | 未測 | 設定檔 `~/.gemini/config/mcp_config.json`;HTTP 欄位改名 `serverUrl`;不支援環境變數展開 |
+| Felo(選配) | 雲端 | SSE 或 Streamable HTTP | 2026-07-15 Pro 帳號確認支援自訂 MCP server | 未做(需先以 tunnel 曝露) | 未測 | 端到端串接尚未實測 |
+
+每一列的 ✅ 都對應下方 Client 安裝教學裡的截圖。
 
 ---
 
 ## 延遲量測摘要
 
-模型組合:預設 `cwchang/llama3-taide-lx-8b-chat-alpha1`(8B,Q5_K_M)vs 對照組 `qwen2.5:3b`(3B,跨家族對照)。RTX 4090,WSL2,`num_ctx=8192`,每個模型跑之前先做一次未計時的 warmup 呼叫,單次量測(非多輪平均)。完整方法論與延遲量測腳本見 `scripts/bench_latency.py`。
+`cwchang/llama3-taide-lx-8b-chat-alpha1`(8B,Q5_K_M)對照 `qwen2.5:3b`(3B,跨家族)。RTX 4090 / WSL2 / `num_ctx=8192`,每個模型先跑一次未計時的 warmup,單次量測(非多輪平均)。腳本:`scripts/bench_latency.py`。
 
 | 工具 | 輸入 | TAIDE(8B) | qwen2.5:3b(3B) |
 |---|---|---|---|

@@ -14,11 +14,11 @@
 ## 系統介面與 Client 展示
 
 | Client 平台 | 連線狀態與 Connector 清單 | 工具呼叫實測 (Tool Call) |
-|---|---|---|
-| **Claude Desktop** | ![Claude Desktop Connectors](docs/screenshots/claude-desktop/connectors-list.png) | ![Claude Desktop Tool Call](docs/screenshots/claude-desktop/tool-call-success.png) |
-| **Claude Code** | ![Claude Code MCP List](docs/screenshots/claude-code/mcp-list.png) | ![Claude Code Tool Call](docs/screenshots/claude-code/tool-call-success.png) |
-| **LM Studio** | ![LM Studio Integrations](docs/screenshots/lm-studio/integrations-panel.png) | ![LM Studio Tool Call](docs/screenshots/lm-studio/tool-call-success.png) |
-| **Antigravity CLI** | ![Antigravity CLI MCP List](docs/screenshots/antigravity-cli/mcp-list.png) | ![Antigravity CLI Tool Call](docs/screenshots/antigravity-cli/tool-call-success.png) |
+|:---:|:---:|:---:|
+| **Claude Desktop** | <img src="docs/screenshots/claude-desktop/connectors-list.png" width="400" alt="Claude Desktop Connectors 清單"> | <img src="docs/screenshots/claude-desktop/tool-call-success.png" width="400" alt="Claude Desktop Tool Call 實測"> |
+| **Claude Code** | <img src="docs/screenshots/claude-code/mcp-list.png" width="400" alt="Claude Code MCP List"> | <img src="docs/screenshots/claude-code/tool-call-success.png" width="400" alt="Claude Code Tool Call 實測"> |
+| **LM Studio** | <img src="docs/screenshots/lm-studio/integrations-panel.png" width="400" alt="LM Studio Integrations 面板"> | <img src="docs/screenshots/lm-studio/tool-call-success.png" width="400" alt="LM Studio Tool Call 實測"> |
+| **Antigravity CLI** | <img src="docs/screenshots/antigravity-cli/mcp-list.png" width="400" alt="Antigravity CLI MCP List"> | <img src="docs/screenshots/antigravity-cli/tool-call-success.png" width="400" alt="Antigravity CLI Tool Call 實測"> |
 
 ---
 

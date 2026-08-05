@@ -17,25 +17,25 @@
 
 | 連線狀態與 Connector 清單 | 工具呼叫實測 (Tool Call) |
 |:---:|:---:|
-| <img src="docs/screenshots/claude-desktop/connectors-list.png" width="100%" alt="Claude Desktop Connectors 清單"> | <img src="docs/screenshots/claude-desktop/tool-call-success.png" width="100%" alt="Claude Desktop Tool Call 實測"> |
+| <img src="docs/screenshots/claude-desktop/connectors-list.png" height="280" alt="Claude Desktop Connectors 清單"> | <img src="docs/screenshots/claude-desktop/tool-call-success.png" height="280" alt="Claude Desktop Tool Call 實測"> |
 
 ### 2. Claude Code (WSL2 / Windows)
 
 | 連線狀態與 Connector 清單 | 工具呼叫實測 (Tool Call) |
 |:---:|:---:|
-| <img src="docs/screenshots/claude-code/mcp-list.png" width="100%" alt="Claude Code MCP List"> | <img src="docs/screenshots/claude-code/tool-call-success.png" width="100%" alt="Claude Code Tool Call 實測"> |
+| <img src="docs/screenshots/claude-code/mcp-list.png" height="260" alt="Claude Code MCP List"> | <img src="docs/screenshots/claude-code/tool-call-success.png" height="260" alt="Claude Code Tool Call 實測"> |
 
 ### 3. LM Studio (Windows, Streamable HTTP + Key)
 
 | 連線狀態與 Connector 清單 | 工具呼叫實測 (Tool Call) |
 |:---:|:---:|
-| <img src="docs/screenshots/lm-studio/integrations-panel.png" width="100%" alt="LM Studio Integrations 面板"> | <img src="docs/screenshots/lm-studio/tool-call-success.png" width="100%" alt="LM Studio Tool Call 實測"> |
+| <img src="docs/screenshots/lm-studio/integrations-panel.png" height="280" alt="LM Studio Integrations 面板"> | <img src="docs/screenshots/lm-studio/tool-call-success.png" height="280" alt="LM Studio Tool Call 實測"> |
 
 ### 4. Antigravity CLI (WSL2, Streamable HTTP + Key)
 
 | 連線狀態與 Connector 清單 | 工具呼叫實測 (Tool Call) |
 |:---:|:---:|
-| <img src="docs/screenshots/antigravity-cli/mcp-list.png" width="100%" alt="Antigravity CLI MCP List"> | <img src="docs/screenshots/antigravity-cli/tool-call-success.png" width="100%" alt="Antigravity CLI Tool Call 實測"> |
+| <img src="docs/screenshots/antigravity-cli/mcp-list.png" height="260" alt="Antigravity CLI MCP List"> | <img src="docs/screenshots/antigravity-cli/tool-call-success.png" height="260" alt="Antigravity CLI Tool Call 實測"> |
 
 ---
 

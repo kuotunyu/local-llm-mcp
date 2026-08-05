@@ -8,4 +8,14 @@ dist/
 build/
 .env
 *.mcpb
+
+# 私人面試筆記與本機開發輔助文檔
+PROGRESS.md
+interview*.md
+INTERVIEW_PREP.md
+*.private.md
+.agents/
+.claude/
+CLAUDE.md
+PLAN.md
 DESIGN.md

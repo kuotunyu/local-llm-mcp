@@ -52,7 +52,9 @@
 
 ---
 
-## 系統架構
+## 系統架構與通訊協定
+
+### 1. 系統硬體與拓撲架構
 
 ```mermaid
 %%{init: {'themeVariables': {'fontSize': '20px'}}}%%
@@ -81,6 +83,35 @@ flowchart TD
 
     style API fill:#fff9db,stroke:#f59f00,stroke-width:2px
     style Ollama fill:#e7f5ff,stroke:#1971c2,stroke-width:2px
+```
+
+### 2. MCP 傳輸協定與認證時序 (Protocol & Progress Sequence)
+
+```mermaid
+%%{init: {'themeVariables': {'fontSize': '20px'}}}%%
+sequenceDiagram
+    autonumber
+    actor User as 使用者 / LLM Client
+    participant Client as MCP Client<br/>(Claude / LM Studio / AG)
+    participant Gateway as local-llm-mcp Gateway<br/>(TokenVerifier Auth)
+    participant Engine as 地端推論引擎<br/>(Ollama RTX 4090)
+
+    User->>Client: 發起長文摘要請求
+    Client->>Gateway: POST /mcp (Bearer API Key)
+    Note over Gateway: 驗證 Authorization Header<br/>與 TokenVerifier 白名單
+    Gateway-->>Client: 200 OK (Streamable HTTP Session Initiated)
+
+    Client->>Gateway: JSON-RPC Call: summarize_private(text)
+    Note over Gateway: 100% 本地運算 (資料不離機)<br/>長文本 Map-Reduce Chunk 分割
+
+    loop 分段推論與 Progress 即時回報
+        Gateway->>Engine: Generate Chunk Summary
+        Engine-->>Gateway: Partial Summary Output
+        Gateway-->>Client: MCP Progress Notification (bytes_processed / total)
+    end
+
+    Gateway-->>Client: JSON-RPC Result: 最終整合摘要結果
+    Client-->>User: 呈現完整摘要文字
 ```
 
 ---

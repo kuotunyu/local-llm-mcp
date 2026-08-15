@@ -13,7 +13,7 @@ from __future__ import annotations
 import httpx
 from mcp.server.fastmcp import Context, FastMCP
 
-from .. import settings
+from .. import __version__, settings
 from ..errors import (
     InputTooLongError,
     WebSearchNotConfiguredError,
@@ -31,7 +31,7 @@ async def _search(query: str) -> dict:
         "Content-Type": "application/json",
         # Cloudflare in front of openapi.felo.ai rejects httpx/urllib default
         # user agents (error 1010) — any explicit product token passes.
-        "User-Agent": "local-llm-mcp/0.1",
+        "User-Agent": f"local-llm-mcp/{__version__}",
     }
     timeout = httpx.Timeout(
         connect=settings.OLLAMA_CONNECT_TIMEOUT,

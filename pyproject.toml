@@ -1,7 +1,7 @@
 [project]
 name = "local-llm-mcp"
-version = "0.1.0"
-description = "MCP server that delegates tasks to local Ollama models — privacy-first: sensitive documents never leave the machine."
+version = "0.2.0"
+description = "Local-first MCP server for Ollama-backed private tasks with an explicit opt-in cloud search boundary."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -16,6 +16,7 @@ dependencies = [
 Homepage = "https://github.com/kuotunyu/local-llm-mcp"
 Repository = "https://github.com/kuotunyu/local-llm-mcp"
 Issues = "https://github.com/kuotunyu/local-llm-mcp/issues"
+Release = "https://github.com/kuotunyu/local-llm-mcp/releases/tag/v0.2.0"
 
 [project.scripts]
 local-llm-mcp = "local_llm_mcp.server:main"

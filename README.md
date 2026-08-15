@@ -5,7 +5,7 @@
 ![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.x-8A2BE2)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-本專案為遵循 Model Context Protocol (MCP) 規範實作之地端 LLM 隱私委派伺服器：將文件摘要、語言翻譯、結構化 JSON 抽取等高隱私需求任務，安全委派至本機 Ollama (如 TAIDE / Llama3 8B) 執行，確保敏感資料 100% 不離開本機。系統完整支援 stdio 與 Streamable HTTP 雙傳輸通道、HTTP Bearer API Key 驗證、MCP 進度回報 (Progress reporting) 與四款主流 Client 整合。
+本專案為遵循 Model Context Protocol (MCP) 規範實作之 local-first LLM 委派伺服器：文件摘要、語言翻譯、結構化 JSON 抽取等 private tools 只呼叫設定的 Ollama endpoint；預設 `OLLAMA_HOST=http://127.0.0.1:11434`，因此模型流量留在本機。`web_search` 則是明確標示、需另外設定金鑰才可使用的 opt-in 外部工具，會將查詢送往 Felo API。系統支援 stdio 與 Streamable HTTP 雙傳輸通道、HTTP Bearer API Key 驗證、MCP 進度回報 (Progress reporting) 與四款主流 Client 整合。完整邊界見 [SECURITY.md](SECURITY.md)。
 
 > **環境與相容性**：已完成 Claude Desktop、Claude Code、LM Studio 與 Antigravity CLI 四大 Client 之真實工具呼叫與相容性驗證。
 
@@ -47,8 +47,8 @@
    支援傳統 `stdio` 通道，以及基於官方 `TokenVerifier` 與 `AuthSettings` 之 `Streamable HTTP` 通道，防止未授權存取。
 3. **分段 Map-Reduce 摘要與 Progress 回報**：
    長文本摘要自動按段落/句子邊界切分 chunk，透過 map-reduce 進行逐段摘要與合併，並經由 MCP Stream 即時回報進度。
-4. **Prompt Injection 防護與長度限制**：
-   所有模型輸出硬性視為資料而非指令 (防止 Host 端自動執行)，並配置嚴格輸入長度限制與邊界隔離。
+4. **模型輸出非執行邊界與輸入限制**：
+   模型輸出只作為資料回傳，不因內容看起來像 shell、Python、URL 或工具指令就由 server 自動執行；這是 non-execution boundary，不宣稱能解決所有 prompt injection。各工具另配置輸入長度限制與明確的 local／external routing 邊界。
 
 ---
 
@@ -102,7 +102,7 @@ sequenceDiagram
     Gateway-->>Client: 200 OK (Streamable HTTP Session Initiated)
 
     Client->>Gateway: JSON-RPC Call: summarize_private(text)
-    Note over Gateway: 100% 本地運算 (資料不離機)<br/>長文本 Map-Reduce Chunk 分割
+    Note over Gateway: private tool 只呼叫 configured Ollama endpoint<br/>預設 127.0.0.1 為本機路徑
 
     loop 分段推論與 Progress 即時回報
         Gateway->>Engine: Generate Chunk Summary
@@ -247,12 +247,16 @@ claude mcp add --transport http local-llm-mcp http://127.0.0.1:8000/mcp \
 
 | 環境變數 | 預設設定值 | 功能說明與安全防護 |
 |---|---|---|
-| `OLLAMA_HOST` | `http://127.0.0.1:11434` | 本機 Ollama 服務位址 |
+| `OLLAMA_HOST` | `http://127.0.0.1:11434` | Ollama 服務位址；若改成遠端 endpoint，private tools 的資料邊界也會跟著改變 |
 | `LOCAL_LLM_MCP_DEFAULT_MODEL` | `cwchang/llama3-taide-lx-8b-chat-alpha1` | 預設 LLM 模型 |
 | `LOCAL_LLM_MCP_MAX_PROMPT_CHARS` | `8000` | 一般問答與抽取之輸入字數上限 |
 | `LOCAL_LLM_MCP_MAX_SUMMARIZE_CHARS` | `200000` | 摘要任務之輸入字數上限 |
-| `LOCAL_LLM_MCP_API_KEY` | (必填) | Streamable HTTP 之 Bearer Token 驗證密鑰 |
-| `LOCAL_LLM_MCP_HTTP_HOST` | `127.0.0.1` | Streamable HTTP 綁定 IP (防護 DNS-Rebinding) |
+| `LOCAL_LLM_MCP_API_KEY` | (HTTP 必填) | Streamable HTTP 之 Bearer Token 驗證密鑰；stdio 不使用此 application-layer auth |
+| `LOCAL_LLM_MCP_HTTP_HOST` | `127.0.0.1` | Streamable HTTP 預設綁定 IP |
+| `LOCAL_LLM_MCP_EXTRA_ALLOWED_HOSTS` | (空) | 額外 Host/Origin allow-list；不會自行改變 HTTP bind address |
+| `FELO_API_KEY` | (空) | 啟用 `web_search` 的外部 Felo API；未設定時該工具 fail closed |
+
+更多 trust / privacy boundary 請見 [SECURITY.md](SECURITY.md)。
 
 ---
 

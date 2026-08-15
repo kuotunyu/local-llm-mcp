@@ -1,8 +1,9 @@
-"""End-to-end test over the stdio transport, using the official MCP Python
-client SDK to spawn a real `local-llm-mcp` process and drive it exactly as
-Claude Desktop/Claude Code would. Requires a reachable Ollama with the
-configured default model pulled — skipped automatically otherwise, since this
-is a real integration test, not a mocked unit test (see tests/unit for those).
+"""End-to-end tests over the stdio transport using the official MCP Python
+client SDK to spawn a real ``local-llm-mcp`` process.
+
+Protocol discovery is intentionally exercised without Ollama so CI proves the
+server can initialize and advertise its MCP surface on every run. Tests that
+actually execute model-backed tools remain conditional on a reachable Ollama.
 """
 
 from __future__ import annotations
@@ -27,31 +28,43 @@ def _ollama_reachable() -> bool:
         return False
 
 
-pytestmark = pytest.mark.skipif(
+requires_ollama = pytest.mark.skipif(
     not _ollama_reachable(),
-    reason=f"Ollama not reachable at {settings.OLLAMA_HOST} — start `ollama serve` to run this e2e test.",
+    reason=f"Ollama not reachable at {settings.OLLAMA_HOST} — start `ollama serve` to run this model-backed e2e test.",
 )
 
 
 @pytest.mark.asyncio
-async def test_stdio_initialize_and_list_tools():
+async def test_stdio_protocol_catalog_without_ollama():
+    """Initialization and primitive discovery must not require model inference."""
     async with stdio_client(SERVER_CMD) as (read, write):
         async with ClientSession(read, write) as session:
             init_result = await session.initialize()
             assert init_result.serverInfo.name == "local-llm-mcp"
 
             tools = (await session.list_tools()).tools
-            names = {t.name for t in tools}
-            assert names == {
+            tool_names = {tool.name for tool in tools}
+            assert tool_names == {
                 "ask_local",
                 "summarize_private",
                 "translate_private",
                 "extract_json",
                 "list_local_models",
                 "pull_model",
+                "web_search",
+            }
+
+            resources = (await session.list_resources()).resources
+            assert {str(resource.uri) for resource in resources} == {"models://local"}
+
+            prompts = (await session.list_prompts()).prompts
+            assert {prompt.name for prompt in prompts} == {
+                "summarize_for_report",
+                "translate_formal",
             }
 
 
+@requires_ollama
 @pytest.mark.asyncio
 async def test_stdio_real_tool_call_and_error_path():
     async with stdio_client(SERVER_CMD) as (read, write):
@@ -71,6 +84,7 @@ async def test_stdio_real_tool_call_and_error_path():
             assert "not available locally" in result.content[0].text
 
 
+@requires_ollama
 @pytest.mark.asyncio
 async def test_stdio_pull_model_reports_progress():
     """Regression test for the report_progress() workaround in progress.py:

@@ -5,14 +5,18 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
@@ -21,9 +25,26 @@ jobs:
         # --frozen: install exactly what uv.lock pins, so CI and local runs
         # resolve the same dependency versions instead of drifting apart.
         run: uv sync --frozen
-      # e2e tests self-skip when Ollama is unreachable (skipif guard probes
-      # localhost:11434), so running the full suite is safe in CI: the unit
-      # tests run and the e2e tests skip. Deliberately no counts here - they
-      # go stale every time a test is added.
       - name: Run tests
+        # Protocol/auth E2E tests initialize real stdio + Streamable HTTP MCP
+        # sessions without Ollama. Only model-backed calls self-skip when
+        # localhost:11434 is unavailable.
         run: uv run pytest -q
+
+  package:
+    name: Build and install wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - name: Build distributions
+        run: uv build
+      - name: Install wheel into clean environment
+        run: |
+          uv venv .release-smoke --python 3.12
+          uv pip install --python .release-smoke/bin/python dist/*.whl
+          .release-smoke/bin/python -c "import local_llm_mcp; print(local_llm_mcp.__version__)"
+          .release-smoke/bin/local-llm-mcp --help
